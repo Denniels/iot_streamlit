@@ -1,5 +1,3 @@
-# IoT Streamlit App
-
 ## Descripción
 
 Esta aplicación Python permite detectar Arduinos conectados (por USB y por red), escanear la red local, identificar dispositivos conectados (incluyendo dispositivos Modbus), listar información relevante de la red y de los dispositivos, y adquirir datos de todos ellos sin interferir en los procesos. Los datos recopilados se formatean en JSON y se envían a una base de datos PostgreSQL y a un frontend desarrollado en Streamlit, desplegado en Streamlit Community Cloud.
@@ -58,37 +56,139 @@ python main.py
 │   ├── arduino_detector.py        # Detección y comunicación con Arduinos
 │   ├── modbus_scanner.py          # Detección y monitoreo de dispositivos Modbus
 │   ├── data_acquisition.py        # Adquisición y formateo de datos
-│   └── db_writer.py               # Envío de datos a PostgreSQL
+│   ├── db_writer.py               # Envío de datos a PostgreSQL/Supabase
+│   └── api.py                     # API RESTful (FastAPI/Flask)
 ├── frontend/
 │   └── app.py                     # Frontend Streamlit
 ├── database/
 │   └── schema.sql                 # Esquema de la base de datos PostgreSQL
-├── requirements.txt               # Dependencias del proyecto
+├── requirements_local.txt         # Dependencias para Jetson Nano
+├── requirements_cloud.txt         # Dependencias para Streamlit Cloud
+├── .env.local                     # Variables de entorno locales
+├── .env.cloud                     # Variables de entorno cloud
 ├── README.md                      # Este archivo
 └── main.py                        # Orquestador principal
 ```
 
-## Pipeline de datos
+
+## Pipeline y flujo de datos
 
 ```mermaid
-graph TD
+flowchart LR
     subgraph Dispositivos
-        A1[Arduino USB] -- Serial/USB --> B1[Python: arduino_detector.py]
-        A2[Arduino Red] -- TCP/UDP --> B2[Python: device_scanner.py]
-        A3[Dispositivos Modbus] -- Modbus TCP/RTU --> B3[Python: modbus_scanner.py]
+        A1[Arduino USB]
+        A2[Arduino Ethernet]
+        O[Otros dispositivos (PLC, variadores, etc.)]
     end
-    B1 & B2 & B3 --> C[data_acquisition.py]
-    C --> D[db_writer.py]
-    D --> E[(PostgreSQL)]
-    C --> F[app.py (Streamlit)]
-    F --> G[Streamlit Community Cloud]
+    subgraph Jetson Nano (Backend)
+        B1[Captura y procesamiento de datos]
+        B2[API RESTful (api.py)]
+        B3[Cliente Supabase]
+    end
+    subgraph Supabase (PostgreSQL Cloud)
+        S1[Base de datos centralizada]
+    end
+    subgraph Streamlit Community Cloud (Frontend)
+        F1[Consulta periódica a Supabase y/o API]
+        F2[Visualización de datos]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    O  --> B1
+    B1 --> B2
+    B1 --> B3
+    B3 --> S1
+    F1 --> S1
+    F1 --> B2
+    F1 --> F2
 ```
 
-## Flujo de datos
-1. **Adquisición**: Los scripts Python detectan y leen datos de Arduinos (USB y red) y dispositivos Modbus.
-2. **Formateo**: Los datos se convierten a JSON.
-3. **Almacenamiento**: Los datos JSON se insertan en la base de datos PostgreSQL.
-4. **Visualización**: El frontend en Streamlit consulta la base de datos y muestra los datos en tiempo real.
+
+```
+┌──────────────────────┐        ┌──────────────────────────────┐        ┌──────────────────────────────┐        ┌──────────────────────────────────────────────┐
+│  Dispositivos físicos│        │   Jetson Nano (Backend)      │        │      Supabase (Cloud)        │        │ Streamlit Community Cloud (Frontend)         │
+│──────────────────────│        │------------------------------│        │-----------------------------│        │----------------------------------------------│
+│ - Arduino USB        │  ───▶  │  Captura y procesamiento     │  ───▶  │  Base de datos centralizada  │  ───▶  │  Consulta periódica y visualización         │
+│ - Arduino Ethernet   │  ───▶  │  de datos y envío a Supabase │        │                             │        │                                              │
+│ - PLC, variadores... │  ───▶  │  (API RESTful: api.py)       │        │                             │        │                                              │
+└──────────────────────┘        └──────────────────────────────┘        └──────────────────────────────┘        └──────────────────────────────────────────────┘
+```
+
+**Flujo:**
+1. Los dispositivos físicos envían datos a la Jetson Nano.
+2. La Jetson Nano procesa y sube los datos a Supabase y/o expone una API RESTful.
+3. El frontend en Streamlit consulta periódicamente Supabase y/o la API para mostrar los datos al usuario.
+
+**Ventajas:**
+- Desacopla completamente backend y frontend.
+- Permite escalabilidad y tolerancia a fallos.
+- Facilita la seguridad y el acceso controlado a los datos.
+- El frontend puede funcionar desde cualquier lugar con acceso a Supabase.
+
+## Explicación del flujo de datos
+
+1. **Dispositivos físicos** (Arduino USB, Arduino Ethernet, PLC, variadores, etc.) envían datos a la **Jetson Nano** mediante los protocolos soportados (USB, Ethernet, Modbus, etc.).
+2. El **backend en la Jetson Nano** captura y procesa estos datos, formateándolos en JSON u otra estructura adecuada.
+3. El backend almacena todos los datos directamente en **Supabase** (PostgreSQL en la nube) y/o los expone mediante una **API RESTful**.
+4. El **frontend** (desplegado en Streamlit Community Cloud) consulta periódicamente Supabase y/o la API para obtener los datos más recientes.
+5. El frontend visualiza y presenta los datos al usuario final, permitiendo monitoreo en tiempo real o casi real, sin necesidad de exponer la Jetson Nano a Internet ni abrir puertos adicionales.
+
+## API RESTful recomendada para la comunicación Backend-Frontend
+
+Se recomienda implementar una API RESTful en el backend (Jetson Nano) para exponer información relevante y permitir una integración flexible con el frontend. Esta API puede convivir con la estrategia de Supabase y ser consultada por el frontend para obtener datos en tiempo real, estado de dispositivos o ejecutar acciones.
+
+### Ejemplo de endpoints sugeridos (FastAPI o Flask):
+
+- `GET /devices` — Lista todos los dispositivos detectados y su estado.
+- `GET /data/latest` — Devuelve los datos más recientes de todos los dispositivos.
+- `GET /data/{device_id}` — Devuelve los datos de un dispositivo específico.
+- `POST /command` — Permite enviar comandos a un dispositivo (opcional, para control remoto).
+
+#### Ejemplo de estructura de FastAPI (backend/api.py):
+
+```python
+from fastapi import FastAPI
+from typing import List
+
+app = FastAPI()
+
+@app.get("/devices")
+def get_devices():
+    # Lógica para listar dispositivos
+    return [{"id": "arduino_usb", "status": "online"}, ...]
+
+@app.get("/data/latest")
+def get_latest_data():
+    # Lógica para devolver los datos más recientes
+    return [{"device_id": "arduino_usb", "value": 123, "timestamp": "..."}, ...]
+
+@app.get("/data/{device_id}")
+def get_device_data(device_id: str):
+    # Lógica para devolver datos de un dispositivo específico
+    return {"device_id": device_id, "values": [...]}
+
+@app.post("/command")
+def send_command(command: dict):
+    # Lógica para enviar comandos a dispositivos
+    return {"status": "ok"}
+```
+
+### Integración desde el frontend (Streamlit):
+
+Puedes consultar la API desde Streamlit usando `requests`:
+
+```python
+import requests
+
+response = requests.get("http://<ip_jetson>:8000/devices")
+devices = response.json()
+st.write(devices)
+```
+
+> Recuerda que para acceder a la API desde Streamlit Community Cloud, la Jetson Nano debe estar accesible desde Internet (no recomendado por seguridad) o exponer la API solo en redes privadas/VPN.
+
+En la mayoría de los casos, la mejor opción es que el backend siga enviando los datos a Supabase y el frontend consulte Supabase, usando la API solo para funciones avanzadas o monitoreo en tiempo real dentro de la red local.
 
 ## Notas sobre los Arduinos
 - `usb_arduino.ino`: Programa para Arduino conectado por USB, envía datos por serial.
