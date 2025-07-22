@@ -286,5 +286,3 @@ psql -h <host_supabase> -U <usuario_supabase> -d <bd_supabase> -f schema.sql
 Modifica las variables de entorno o el archivo de configuración de tu backend para que apunten a la base de datos de Supabase.
 
 ---
-
-Ahora tu backend y frontend podrán interactuar con la base de datos PostgreSQL alojada en Supabase.
