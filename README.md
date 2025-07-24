@@ -284,5 +284,3 @@ psql -h <host_supabase> -U <usuario_supabase> -d <bd_supabase> -f schema.sql
 
 ### 4. Actualizar la configuración de conexión en tu app
 Modifica las variables de entorno o el archivo de configuración de tu backend para que apunten a la base de datos de Supabase.
-
----
