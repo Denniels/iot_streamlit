@@ -1,83 +1,109 @@
-"""
-Dashboard principal de Streamlit para el sistema IoT
-"""
 import streamlit as st
-import requests
 import pandas as pd
+import requests
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import json
-from datetime import datetime, timedelta
-import time
+import os
 
-# Configuración de página
+# Colores elegantes
+PRIMARY_COLOR = "#1a2639"  # Azul oscuro
+ACCENT_COLOR = "#e6b800"   # Dorado
+BG_COLOR = "#f5f6fa"       # Fondo claro
+SUCCESS_COLOR = "#2ecc71"  # Verde confianza
+ERROR_COLOR = "#e74c3c"    # Rojo
+
 st.set_page_config(
-    page_title="IoT Dashboard",
-    page_icon="🌐",
+    page_title="IoT Dashboard - Jetson & Arduino",
+    page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# CSS personalizado
-st.markdown("""
-<style>
-.metric-container {
-    background-color: #f0f2f6;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    border-left: 4px solid #1f77b4;
-}
-
-.status-online { color: #28a745; }
-.status-offline { color: #dc3545; }
-.status-error { color: #ffc107; }
-
-.device-card {
-    background: white;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    border: 1px solid #ddd;
-    margin: 0.5rem 0;
-}
-
-.sidebar-content {
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.5rem;
-}
-</style>
+st.markdown(f"""
+    <style>
+    .reportview-container {{ background: {BG_COLOR}; }}
+    .sidebar .sidebar-content {{ background: {PRIMARY_COLOR}; color: white; }}
+    .css-1d391kg {{ color: {PRIMARY_COLOR}; }}
+    .css-1v0mbdj p {{ color: {PRIMARY_COLOR}; }}
+    .st-bb {{ background: {PRIMARY_COLOR}; }}
+    .st-bb:hover {{ background: {ACCENT_COLOR}; }}
+    .st-bb:active {{ background: {SUCCESS_COLOR}; }}
+    .st-bb:focus {{ background: {ACCENT_COLOR}; }}
+    </style>
 """, unsafe_allow_html=True)
 
-# Configuración de la API
-API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000")
+st.title("IoT Dashboard - Jetson Nano & Arduino")
+st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
 
-class IoTDashboard:
-    """Clase principal del dashboard"""
-    
-    def __init__(self):
-        self.api_url = API_BASE_URL
-        
-        # Estado de la aplicación
-        if 'last_update' not in st.session_state:
-            st.session_state.last_update = datetime.now()
-        if 'auto_refresh' not in st.session_state:
-            st.session_state.auto_refresh = False
-        if 'selected_device' not in st.session_state:
-            st.session_state.selected_device = None
-    
-    def make_api_request(self, endpoint: str):
-        """Realizar petición a la API con manejo de errores"""
-        try:
-            response = requests.get(f"{self.api_url}{endpoint}", timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.ConnectionError:
-            st.error("❌ No se puede conectar con el backend. Verifica que esté ejecutándose.")
-            return None
-        except requests.exceptions.Timeout:
-            st.error("⏱️ Timeout conectando con el backend")
-            return None
+# Configuración Supabase
+SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st.secrets else os.getenv("SUPABASE_ANON_KEY")
+
+# Consulta a Supabase REST API
+@st.cache_data(ttl=60)
+def get_sensor_data():
+    url = f"{SUPABASE_URL}/rest/v1/sensor_data?select=*"
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        return pd.DataFrame(r.json())
+    else:
+        st.error("Error consultando Supabase: " + r.text)
+        return pd.DataFrame()
+
+@st.cache_data(ttl=60)
+def get_devices():
+    url = f"{SUPABASE_URL}/rest/v1/devices?select=*"
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        return pd.DataFrame(r.json())
+    else:
+        st.error("Error consultando Supabase: " + r.text)
+        return pd.DataFrame()
+
+# Carga de datos
+sensor_df = get_sensor_data()
+devices_df = get_devices()
+
+# Sidebar: Filtros
+st.sidebar.header("Filtros avanzados")
+devices = devices_df["device_id"].unique() if not devices_df.empty else []
+selected_device = st.sidebar.selectbox("Selecciona dispositivo", devices)
+
+# Últimos 5 registros por dispositivo
+st.subheader("Últimos 5 registros por dispositivo")
+if not sensor_df.empty:
+    for device in devices:
+        st.markdown(f"<h5 style='color:{PRIMARY_COLOR};'>Dispositivo: {device}</h5>", unsafe_allow_html=True)
+        df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp", ascending=False).head(5)
+        st.dataframe(df_device, use_container_width=True)
+else:
+    st.info("No hay datos de sensores disponibles.")
+
+# Gráficas avanzadas por dispositivo
+st.subheader("Gráficas avanzadas por dispositivo")
+if not sensor_df.empty:
+    for device in devices:
+        df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
+        if not df_device.empty:
+            fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
+            fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
+            st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No hay datos para graficar.")
+
+# Dashboard general avanzado
+st.subheader("Dashboard general avanzado")
+if not sensor_df.empty:
+    fig = px.scatter(sensor_df, x="timestamp", y="value", color="device_id", symbol="sensor_type", title="Historial completo de sensores")
+    fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
+else:
+    st.info("No hay datos históricos disponibles.")
+
+# Actualización automática
+st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit Cloud & Supabase.</small>", unsafe_allow_html=True)
         except requests.exceptions.RequestException as e:
             st.error(f"❌ Error de API: {e}")
             return None
