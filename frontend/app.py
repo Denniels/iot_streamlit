@@ -110,11 +110,8 @@ if not sensor_df.empty:
 else:
     st.info("No hay datos históricos disponibles.")
 
-# Actualización automática
+
 st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit Cloud & Supabase.</small>", unsafe_allow_html=True)
-except requests.exceptions.RequestException as e:
-    st.error(f"❌ Error de API: {e}")
-    return None
     
     def get_system_status(self):
         """Obtener estado del sistema"""
