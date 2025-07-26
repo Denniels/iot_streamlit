@@ -422,6 +422,10 @@ st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit
                         )
                     
                     fig.update_layout(height=400 * len([c for c in sensor_df.columns if c != 'timestamp']))
+class IoTDashboard:
+    def __init__(self):
+        self.api_url = "http://api.example.com"  # Example API URL
+
                     st.plotly_chart(fig, use_container_width=True)
                     
                 except Exception as e:
