@@ -119,6 +119,8 @@ class IoTDashboard:
         pass
 
     def render_sidebar(self):
+        if "auto_refresh" not in st.session_state:
+            st.session_state.auto_refresh = False
         """Renderizar barra lateral con controles"""
         st.sidebar.title("🌐 IoT Control Panel")
         st.sidebar.markdown("### 🔗 Estado de Conexión")
