@@ -36,6 +36,13 @@ class Config:
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
+    # Base de datos
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = int(os.getenv('DB_PORT', 5432))
+    DB_NAME = os.getenv('DB_NAME', 'iot_db')
+    DB_USER = os.getenv('DB_USER', 'iot_user')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'iot_password')
+
 def setup_logging():
     """Configurar logging para toda la aplicación"""
     logging.basicConfig(

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-API IoT Local compatible con Python 3.6
+API IoT Local compatible con PostgreSQL
 Recibe datos de Arduino via USB y Ethernet, los almacena en PostgreSQL
 """
 import json
-import sqlite3
 import threading
 import time
 import serial
@@ -13,216 +12,57 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from flask import Flask, request, jsonify, render_template_string
 import logging
+from backend.postgres_client import db_client
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Configuración
-DB_FILE = 'iot_local.db'
-ARDUINO_USB_BAUDRATE = 9600
 API_PORT = 8000
 NETWORK_SCAN_RANGE = '192.168.0.0/24'
+ARDUINO_USB_BAUDRATE = 9600
 
 # Variables globales
 arduino_usb = None
 arduino_ethernet_ips = []
 app = Flask(__name__)
 
-class LocalDatabase:
-    """Cliente para base de datos SQLite local"""
-    
-    def __init__(self, db_file: str):
-        self.db_file = db_file
-        self.init_database()
-    
-    def init_database(self):
-        """Inicializar base de datos SQLite"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            # Crear tablas
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS devices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    device_id TEXT UNIQUE NOT NULL,
-                    device_type TEXT NOT NULL,
-                    name TEXT,
-                    ip_address TEXT,
-                    port INTEGER,
-                    status TEXT DEFAULT 'active',
-                    metadata TEXT,
-                    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS sensor_data (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    device_id TEXT NOT NULL,
-                    sensor_type TEXT NOT NULL,
-                    value REAL,
-                    unit TEXT,
-                    raw_data TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS system_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_type TEXT NOT NULL,
-                    device_id TEXT,
-                    message TEXT,
-                    metadata TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            conn.commit()
-            conn.close()
-            logger.info("✅ Base de datos SQLite inicializada")
-            
-        except Exception as e:
-            logger.error(f"❌ Error inicializando base de datos: {e}")
-    
-    def register_device(self, device_data: Dict[str, Any]) -> bool:
-        """Registrar dispositivo"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT OR REPLACE INTO devices 
-                (device_id, device_type, name, ip_address, port, status, metadata, last_seen, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ''', (
-                device_data.get('device_id'),
-                device_data.get('device_type'),
-                device_data.get('name'),
-                device_data.get('ip_address'),
-                device_data.get('port'),
-                device_data.get('status', 'active'),
-                json.dumps(device_data.get('metadata', {}))
-            ))
-            
-            conn.commit()
-            conn.close()
-            logger.info(f"✅ Dispositivo registrado: {device_data.get('device_id')}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Error registrando dispositivo: {e}")
-            return False
-    
-    def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
-        """Insertar datos de sensor"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (
-                sensor_data.get('device_id'),
-                sensor_data.get('sensor_type'),
-                sensor_data.get('value'),
-                sensor_data.get('unit'),
-                json.dumps(sensor_data.get('raw_data', {}))
-            ))
-            
-            conn.commit()
-            conn.close()
-            logger.info(f"📊 Datos insertados: {sensor_data.get('device_id')} - {sensor_data.get('sensor_type')}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Error insertando datos: {e}")
-            return False
-    
-    def get_devices(self) -> List[Dict]:
-        """Obtener dispositivos"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('SELECT * FROM devices ORDER BY last_seen DESC')
-            rows = cursor.fetchall()
-            
-            devices = []
-            for row in rows:
-                device = dict(row)
-                if device['metadata']:
-                    device['metadata'] = json.loads(device['metadata'])
-                devices.append(device)
-            
-            conn.close()
-            return devices
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo dispositivos: {e}")
-            return []
-    
-    def get_sensor_data(self, device_id: str = None, limit: int = 100) -> List[Dict]:
-        """Obtener datos de sensores"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            if device_id:
-                cursor.execute('''
-                    SELECT * FROM sensor_data 
-                    WHERE device_id = ? 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                ''', (device_id, limit))
-            else:
-                cursor.execute('''
-                    SELECT * FROM sensor_data 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                ''', (limit,))
-            
-            rows = cursor.fetchall()
-            
-            data = []
-            for row in rows:
-                item = dict(row)
-                if item['raw_data']:
-                    item['raw_data'] = json.loads(item['raw_data'])
-                data.append(item)
-            
-            conn.close()
-            return data
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo datos de sensores: {e}")
-            return []
+# --- Funciones de acceso a datos usando PostgreSQL ---
+def register_device(device_data: Dict[str, Any]) -> bool:
+    return db_client.register_device(device_data)
 
-# Inicializar base de datos
-db = LocalDatabase(DB_FILE)
+def insert_sensor_data(sensor_data: Dict[str, Any]) -> bool:
+    return db_client.insert_sensor_data(sensor_data)
+
+def log_system_event(event_type: str, device_id: str = None, message: str = None, metadata: Dict = None) -> bool:
+    return db_client.log_system_event(event_type, device_id, message, metadata)
+
+def get_devices(status: str = None) -> List[Dict]:
+    return db_client.get_devices(status)
+
+def get_recent_sensor_data(device_id: str = None, limit: int = 100) -> List[Dict]:
+    return db_client.get_recent_sensor_data(device_id, limit)
 
 def find_arduino_usb_port():
     """Encontrar puerto USB del Arduino automáticamente"""
-    import glob
-    possible_ports = glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyS*')
-    
-    for port in possible_ports:
-        try:
-            test_serial = serial.Serial(port, ARDUINO_USB_BAUDRATE, timeout=2)
-            test_serial.close()
-            logger.info(f"🔍 Puerto USB encontrado: {port}")
-            return port
-        except Exception:
-            continue
-    
+    import serial.tools.list_ports
+    logger.info("🔍 Buscando puertos Arduino USB...")
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        # Buscar Arduino por VID/PID o descripción
+        if (getattr(port, 'vid', None) == 0x2341 or  # Arduino VID
+            'arduino' in port.description.lower() or
+            'uno' in port.description.lower() or
+            'acm' in port.device.lower()):
+            try:
+                test_serial = serial.Serial(port.device, ARDUINO_USB_BAUDRATE, timeout=2)
+                test_serial.close()
+                logger.info(f"🔍 Puerto USB encontrado: {port.device} - {port.description}")
+                return port.device
+            except Exception as e:
+                logger.warning(f"⚠️ Error probando puerto {port.device}: {e}")
+                continue
     logger.warning("⚠️ No se encontró puerto USB para Arduino")
     return None
 
@@ -276,7 +116,7 @@ def scan_arduino_ethernet():
                             'status': 'active',
                             'metadata': {'connection_type': 'Ethernet', 'ip': ip, 'endpoint': endpoint}
                         }
-                        db.register_device(device_data)
+                        db_client.register_device(device_data)
                         break
                         
                 except Exception as e:
@@ -314,7 +154,7 @@ def init_arduino_usb():
             'status': 'active',
             'metadata': {'connection_type': 'USB', 'port': usb_port}
         }
-        db.register_device(device_data)
+        db_client.register_device(device_data)
         
         return True
         
@@ -367,7 +207,7 @@ def read_arduino_usb():
                                     }
                                     
                                     # Insertar en base de datos
-                                    success = db.insert_sensor_data(sensor_data)
+                                    success = db_client.insert_sensor_data(sensor_data)
                                     if success:
                                         logger.info(f"✅ Sensor guardado: {sensor_name} = {sensor_value} {unit}")
                                     else:
@@ -376,7 +216,7 @@ def read_arduino_usb():
                         # Formato simple (legacy)
                         elif 'sensor_type' in data and 'value' in data:
                             data['device_id'] = data.get('device_id', 'arduino_usb_001')
-                            db.insert_sensor_data(data)
+                            db_client.insert_sensor_data(data)
                             
                     except json.JSONDecodeError:
                         # Si no es JSON, intentar parsear formato simple
@@ -400,7 +240,7 @@ def read_arduino_usb():
                                         'unit': unit,
                                         'raw_data': {'original_line': line, 'source': 'usb'}
                                     }
-                                    db.insert_sensor_data(sensor_data)
+                                    db_client.insert_sensor_data(sensor_data)
             
             time.sleep(1)
             
@@ -453,7 +293,7 @@ def read_arduino_ethernet():
                                     }
                                     
                                     # Insertar en base de datos
-                                    success = db.insert_sensor_data(sensor_data)
+                                    success = db_client.insert_sensor_data(sensor_data)
                                     if success:
                                         logger.info(f"✅ Ethernet sensor guardado: {sensor_name} = {sensor_value} {unit} ({ip})")
                                     else:
@@ -462,7 +302,7 @@ def read_arduino_ethernet():
                         # Formato simple (legacy)
                         elif 'sensor_type' in data and 'value' in data:
                             data['device_id'] = device_id
-                            db.insert_sensor_data(data)
+                            db_client.insert_sensor_data(data)
                             
                         logger.info(f"📡 Ethernet {ip} procesado: {len(data.get('sensors', {}))} sensores")
                         
@@ -599,7 +439,7 @@ def api_devices():
     if request.method == 'POST':
         try:
             device_data = request.get_json()
-            if db.register_device(device_data):
+            if db_client.register_device(device_data):
                 return jsonify({'status': 'success', 'message': 'Dispositivo registrado'})
             else:
                 return jsonify({'status': 'error', 'message': 'Error registrando dispositivo'}), 500
@@ -607,7 +447,9 @@ def api_devices():
             return jsonify({'status': 'error', 'message': str(e)}), 400
     
     else:  # GET
-        devices = db.get_devices()
+        devices = db_client.get_devices()
+        # Filtrar dispositivos de prueba
+        devices = [d for d in devices if not (d.get('device_id') == 'test_device_001' or d.get('device_type') == 'test_type')]
         return jsonify(devices)
 
 @app.route('/api/sensor-data', methods=['GET', 'POST'])
@@ -621,7 +463,7 @@ def api_sensor_data():
             if not all(key in sensor_data for key in ['device_id', 'sensor_type', 'value']):
                 return jsonify({'status': 'error', 'message': 'Faltan campos requeridos'}), 400
             
-            if db.insert_sensor_data(sensor_data):
+            if db_client.insert_sensor_data(sensor_data):
                 return jsonify({'status': 'success', 'message': 'Datos guardados'})
             else:
                 return jsonify({'status': 'error', 'message': 'Error guardando datos'}), 500
@@ -633,15 +475,15 @@ def api_sensor_data():
         device_id = request.args.get('device_id')
         limit = int(request.args.get('limit', 100))
         
-        data = db.get_sensor_data(device_id, limit)
+        data = db_client.get_recent_sensor_data(device_id, limit)
         return jsonify(data)
 
 @app.route('/api/stats')
 def api_stats():
     """API para estadísticas"""
     try:
-        devices = db.get_devices()
-        recent_data = db.get_sensor_data(limit=1)
+        devices = db_client.get_devices()
+        recent_data = db_client.get_recent_sensor_data(limit=1)
         
         stats = {
             'total_devices': len(devices),
@@ -660,7 +502,6 @@ def main():
     global arduino_ethernet_ips
     
     logger.info("🚀 Iniciando API IoT Local...")
-    logger.info(f"📊 Base de datos: {DB_FILE}")
     logger.info(f"🌐 Puerto API: {API_PORT}")
     
     # Escanear Arduino Ethernet
