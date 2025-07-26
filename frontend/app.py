@@ -43,22 +43,30 @@ SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st
 def get_sensor_data():
     url = f"{SUPABASE_URL}/rest/v1/sensor_data?select=*"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    r = requests.get(url, headers=headers)
-    if r.status_code == 200:
-        return pd.DataFrame(r.json())
-    else:
-        st.error("Error consultando Supabase: " + r.text)
+    try:
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            return pd.DataFrame(r.json())
+        else:
+            st.error("Error consultando Supabase: " + r.text)
+            return pd.DataFrame()
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Error de API: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=60)
 def get_devices():
     url = f"{SUPABASE_URL}/rest/v1/devices?select=*"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    r = requests.get(url, headers=headers)
-    if r.status_code == 200:
-        return pd.DataFrame(r.json())
-    else:
-        st.error("Error consultando Supabase: " + r.text)
+    try:
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            return pd.DataFrame(r.json())
+        else:
+            st.error("Error consultando Supabase: " + r.text)
+            return pd.DataFrame()
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Error de API: {e}")
         return pd.DataFrame()
 
 # Carga de datos
