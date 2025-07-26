@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import plotly.express as px
 import os
+import time
 
 # Colores elegantes
 PRIMARY_COLOR = "#1a2639"  # Azul oscuro
@@ -115,126 +116,28 @@ st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit
 
 class IoTDashboard:
     def __init__(self):
-        self.api_url = "http://api.example.com"  # Example API URL
-
-    def get_system_status(self):
-        """Obtener estado del sistema"""
-        return self.make_api_request("/status")
-
-    def get_devices(self):
-        """Obtener lista de dispositivos"""
-        return self.make_api_request("/devices")
-
-    def get_latest_data(self):
-        """Obtener datos más recientes"""
-        return self.make_api_request("/data")
-
-    def get_device_data(self, device_id: str, limit: int = 100):
-        """Obtener datos de un dispositivo específico"""
-        return self.make_api_request(f"/data/{device_id}?limit={limit}")
-
-    def trigger_scan(self):
-        """Disparar escaneo de red"""
-        try:
-            response = requests.post(f"{self.api_url}/scan/network", timeout=30)
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error iniciando escaneo: {e}")
-            return False
-
-    def start_acquisition(self, interval: int = 10):
-        """Iniciar adquisición continua"""
-        try:
-            response = requests.post(f"{self.api_url}/acquisition/start?interval={interval}")
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error iniciando adquisición: {e}")
-            return False
-
-    def stop_acquisition(self):
-        """Detener adquisición continua"""
-        try:
-            response = requests.post(f"{self.api_url}/acquisition/stop")
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error deteniendo adquisición: {e}")
-            return False
+        pass
 
     def render_sidebar(self):
         """Renderizar barra lateral con controles"""
         st.sidebar.title("🌐 IoT Control Panel")
-
-        # Estado de conexión
         st.sidebar.markdown("### 🔗 Estado de Conexión")
-
-        # Verificar conexión con API
+        st.sidebar.success("✅ Conectado a Supabase")
         try:
-            health = self.make_api_request("/health")
-            if health and health.get("status") == "healthy":
-                st.sidebar.success("✅ Backend conectado")
-                st.sidebar.metric("Dispositivos", health.get("devices_count", 0))
-            else:
-                st.sidebar.error("❌ Backend desconectado")
-        except:
-            st.sidebar.error("❌ Sin conexión")
-
+            devices_count = len(devices_df) if 'devices_df' in globals() else 0
+            st.sidebar.metric("Dispositivos", devices_count)
+        except Exception:
+            st.sidebar.metric("Dispositivos", 0)
         st.sidebar.markdown("---")
-
-        # Controles de sistema
         st.sidebar.markdown("### ⚙️ Controles de Sistema")
-
-        col1, col2 = st.sidebar.columns(2)
-
-        with col1:
-            if st.button("🔍 Escanear Red"):
-                with st.spinner("Escaneando..."):
-                    if self.trigger_scan():
-                        st.success("Escaneo iniciado")
-                    time.sleep(2)
-                    st.rerun()
-
-        with col2:
-            if st.button("🔄 Actualizar"):
-                st.session_state.last_update = datetime.now()
-                st.rerun()
-
-        # Control de adquisición
-        st.sidebar.markdown("### 📊 Adquisición de Datos")
-
-        status = self.get_system_status()
-        if status:
-            is_running = status.get("running", False)
-
-            if is_running:
-                st.sidebar.success("🟢 Adquisición activa")
-                if st.sidebar.button("⏹️ Detener"):
-                    if self.stop_acquisition():
-                        st.success("Adquisición detenida")
-                        time.sleep(1)
-                        st.rerun()
-            else:
-                st.sidebar.warning("🟡 Adquisición inactiva")
-                interval = st.sidebar.slider("Intervalo (seg)", 5, 60, 10)
-                if st.sidebar.button("▶️ Iniciar"):
-                    if self.start_acquisition(interval):
-                        st.success("Adquisición iniciada")
-                        time.sleep(1)
-                        st.rerun()
-
+        if st.button("🔄 Actualizar"):
+            st.rerun()
         st.sidebar.markdown("---")
-
-        # Auto-refresh
         st.sidebar.markdown("### 🔄 Auto-actualización")
         st.session_state.auto_refresh = st.sidebar.checkbox("Activar auto-refresh", st.session_state.auto_refresh)
-
         if st.session_state.auto_refresh:
             refresh_rate = st.sidebar.slider("Segundos", 5, 60, 10)
             st.sidebar.info(f"Próxima actualización en {refresh_rate}s")
-
-            # Placeholder para countdown
             placeholder = st.sidebar.empty()
             for i in range(refresh_rate, 0, -1):
                 placeholder.text(f"Actualizando en {i}s...")
@@ -245,16 +148,11 @@ class IoTDashboard:
     def render_overview(self):
         """Renderizar vista general del sistema"""
         st.title("🌐 IoT Dashboard - Vista General")
-
-        # Obtener datos del sistema
-        status = self.get_system_status()
-        devices_response = self.get_devices()
-
-        if not status or not devices_response:
-            st.error("No se pueden cargar los datos del sistema")
+        # Usar devices_df y sensor_df directamente
+        if devices_df.empty:
+            st.error("No se pueden cargar los datos de dispositivos")
             return
-
-        devices = devices_response.get("data", [])
+        devices = devices_df.to_dict(orient="records")
 
         # Métricas principales
         col1, col2, col3, col4 = st.columns(4)

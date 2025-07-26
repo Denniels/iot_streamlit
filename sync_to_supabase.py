@@ -68,12 +68,12 @@ def sync_to_supabase():
             print("No hay datos nuevos para sincronizar.")
             time.sleep(SYNC_INTERVAL)
             continue
-        # Filtrar solo los campos válidos para Supabase
-        valid_fields = ['device_id', 'sensor_type', 'value', 'unit', 'timestamp', 'raw_data', 'synced']
+        # Filtrar solo los campos válidos para Supabase (sin 'synced')
+        valid_fields = ['device_id', 'sensor_type', 'value', 'unit', 'timestamp', 'raw_data']
         filtered_rows = []
+        ids_to_mark = []
         for row in rows:
-            # Crear copia limpia sin 'id'
-            clean_row = {k: v for k, v in row.items() if k != 'id'}
+            clean_row = {k: v for k, v in row.items() if k not in ['id', 'synced']}
             filtered_row = {k: v for k, v in clean_row.items() if k in valid_fields}
             # Serializar datetime
             if 'timestamp' in filtered_row and hasattr(filtered_row['timestamp'], 'isoformat'):
@@ -82,17 +82,22 @@ def sync_to_supabase():
             if 'raw_data' in filtered_row and isinstance(filtered_row['raw_data'], dict):
                 filtered_row['raw_data'] = json.dumps(filtered_row['raw_data'])
             filtered_rows.append(filtered_row)
+            ids_to_mark.append(row['id'])
         print("Datos enviados a Supabase:", filtered_rows)
 
-        # Enviar batch a Supabase
-        response = supabase.table('sensor_data').insert(filtered_rows).execute()
-        print("Status:", getattr(response, 'status', None))
-        print("Response:", getattr(response, 'data', None), getattr(response, 'error', None))
-        if hasattr(response, 'status') and response.status in [200, 201]:
-            print(f"Sincronizados {len(filtered_rows)} registros.")
-            mark_as_synced([row['id'] for row in rows])
-        else:
-            print("Error al sincronizar:", response)
+        # Usar upsert para evitar errores de duplicidad
+        try:
+            response = supabase.table('sensor_data').upsert(filtered_rows).execute()
+            print("Status:", getattr(response, 'status', None))
+            print("Response:", getattr(response, 'data', None), getattr(response, 'error', None))
+            # Si no hay error, considerar exitosa la sincronización
+            if getattr(response, 'error', None) is None:
+                print(f"Sincronizados {len(filtered_rows)} registros.")
+                mark_as_synced(ids_to_mark)
+            else:
+                print("Error al sincronizar:", response.error)
+        except Exception as e:
+            print("Excepción al sincronizar:", e)
         time.sleep(SYNC_INTERVAL)
 
 def test_supabase_connection():
