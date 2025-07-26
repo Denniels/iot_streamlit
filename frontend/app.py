@@ -114,10 +114,7 @@ else:
 st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit Cloud & Supabase.</small>", unsafe_allow_html=True)
     
     def get_system_status(self):
-        """Obtener estado del sistema"""
-        return self.make_api_request("/status")
-    
-    def get_devices(self):
+        # Removed duplicate and misindented methods
 class IoTDashboard:
     def __init__(self):
         self.api_url = "http://api.example.com"  # Example API URL
