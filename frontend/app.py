@@ -74,7 +74,7 @@ class IoTDashboard:
 
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
-        data = self.get_sensor_data(100)
+        data = self.get_sensor_data(200)
         if not data:
             st.error("No se pueden cargar los datos desde Supabase")
             return
@@ -82,16 +82,43 @@ class IoTDashboard:
         if df.empty:
             st.info("No hay datos disponibles en Supabase.")
             return
-        # Mostrar tabla principal
-        st.markdown("### Últimos datos de sensores")
-        st.dataframe(df, use_container_width=True)
+
+        # Selección de dispositivo
+        st.markdown("### Selecciona un dispositivo para visualizar sus datos")
+        device_ids = df['device_id'].unique().tolist()
+        selected_device = st.selectbox("Dispositivo:", device_ids)
+
+        df_device = df[df['device_id'] == selected_device]
+
+        # Mostrar tabla principal filtrada
+        st.markdown(f"### Últimos datos de sensores - {selected_device}")
+        st.dataframe(df_device, use_container_width=True)
+
         # Métricas rápidas
         st.markdown("### 📊 Métricas rápidas")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Total registros", len(df))
+            st.metric("Total registros", len(df_device))
         with col2:
-            st.metric("Última actualización", str(df['timestamp'].max()))
+            st.metric("Última actualización", str(df_device['timestamp'].max()))
+
+        # Visualización de variables
+        st.markdown("### 📈 Gráficos de variables")
+        variables = [col for col in df_device.columns if col.startswith('temperature') or col == 'value' or col == 'light_level']
+        if 'sensor_type' in df_device.columns and 'value' in df_device.columns:
+            sensor_types = df_device['sensor_type'].unique().tolist()
+            for sensor in sensor_types:
+                df_sensor = df_device[df_device['sensor_type'] == sensor]
+                fig = px.line(
+                    df_sensor,
+                    x='timestamp',
+                    y='value',
+                    title=f"{sensor} - {selected_device}",
+                    markers=True
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No hay variables numéricas para graficar.")
 
     def run(self):
         self.render_overview()
