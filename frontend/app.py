@@ -3,36 +3,6 @@ import pandas as pd
 import requests
 import plotly.express as px
 import os
-        with col1:
-            total_devices = len(devices)
-            st.metric(
-                "\U0001F4F1 Total Dispositivos",
-                total_devices,
-                delta=None
-            )
-        with col2:
-            st.metric(
-                "\u2705 Dispositivos Online",
-                online_devices,
-                delta=f"{online_devices}/{total_devices}"
-            )
-        with col3:
-            acquisition_status = "🟢 Activa" if acquisition_active else "🟡 Inactiva"
-            st.metric(
-                "\U0001F4CA Adquisición",
-                acquisition_status,
-                delta=None
-            )
-        with col4:
-            if last_data_time is not None:
-                delta_time = now - last_data_time.to_pydatetime()
-                st.metric(
-                    "\U0001F551 Última Actualización",
-                    f"{delta_time.seconds//60}m {delta_time.seconds%60}s",
-                    delta="hace"
-                )
-            else:
-                st.metric("\U0001F551 Última Actualización", "Sin datos", delta=None)
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
             st.metric(
