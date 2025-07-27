@@ -109,9 +109,25 @@ else:
 # Dashboard general avanzado
 st.subheader("Dashboard general avanzado")
 if not sensor_df.empty:
-    fig = px.scatter(sensor_df, x="timestamp", y="value", color="device_id", symbol="sensor_type", title="Historial completo de sensores")
-    fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
-    st.plotly_chart(fig, use_container_width=True)
+    fig = px.scatter(
+        sensor_df,
+        x="timestamp",
+        y="value",
+        color="device_id",
+        symbol="sensor_type",
+        title="Historial completo de sensores",
+        hover_data=["sensor_type", "value", "unit", "device_id"],
+        template="plotly_white"
+    )
+    fig.update_layout(
+        plot_bgcolor=BG_COLOR,
+        paper_bgcolor=BG_COLOR,
+        font_color=PRIMARY_COLOR,
+        legend_title_text="Dispositivo",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_traces(marker=dict(size=12, line=dict(width=2, color=ACCENT_COLOR)))
+    st.plotly_chart(fig, use_container_width=True, key="general_scatter_dashboard")
     st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
 else:
     st.info("No hay datos históricos disponibles.")
