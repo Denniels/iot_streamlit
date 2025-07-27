@@ -131,41 +131,88 @@ if not sensor_df.empty and len(devices) > 0:
     for i, device in enumerate(devices):
         df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
         if not df_device.empty:
-            col1, col2 = st.columns([2,1])
-            with col1:
-                fig = px.line(
-                    df_device,
-                    x="timestamp",
-                    y="value",
-                    color="sensor_type",
-                    title=f"📊 {device}: Evolución temporal de sensores",
-                    labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
-                    template="plotly_white",
-                    line_shape="spline"
-                )
-                fig.update_layout(
-                    plot_bgcolor=BG_COLOR,
-                    paper_bgcolor=BG_COLOR,
-                    font_color=PRIMARY_COLOR,
-                    legend_title_text="Sensor",
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    title_font=dict(size=20, color=ACCENT_COLOR)
-                )
-                fig.update_traces(line=dict(width=4), marker=dict(size=10))
-                st.plotly_chart(fig, use_container_width=True, key=f"plot_{device}_{i}")
-            with col2:
-                pie_df = df_device["sensor_type"].value_counts().reset_index()
-                pie_df.columns = ["Tipo de sensor", "Registros"]
-                fig_pie = px.pie(
-                    pie_df,
-                    names="Tipo de sensor",
-                    values="Registros",
-                    title=f"Proporción por tipo de sensor en {device}",
-                    color_discrete_sequence=px.colors.sequential.YlOrBr
-                )
-                fig_pie.update_traces(textinfo='percent+label')
-                fig_pie.update_layout(title_font=dict(size=16, color=ACCENT_COLOR))
-                st.plotly_chart(fig_pie, use_container_width=True, key=f"pie_{device}_{i}")
+            if device == "arduino_usb_001":
+                # Gráfico de líneas solo para sensores de temperatura
+                temp_df = df_device[df_device["sensor_type"].str.contains("temperature")]
+                if not temp_df.empty:
+                    st.markdown(f"<h5 style='color:{ACCENT_COLOR};'>📊 {device}: Temperaturas</h5>", unsafe_allow_html=True)
+                    fig_temp = px.line(
+                        temp_df,
+                        x="timestamp",
+                        y="value",
+                        color="sensor_type",
+                        title=f"{device} - Sensores de Temperatura",
+                        labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
+                        template="plotly_white",
+                        line_shape="spline"
+                    )
+                    fig_temp.update_layout(
+                        plot_bgcolor=BG_COLOR,
+                        paper_bgcolor=BG_COLOR,
+                        font_color=PRIMARY_COLOR,
+                        legend_title_text="Sensor",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        title_font=dict(size=20, color=ACCENT_COLOR)
+                    )
+                    fig_temp.update_traces(line=dict(width=4), marker=dict(size=10))
+                    st.plotly_chart(fig_temp, use_container_width=True, key=f"plot_temp_{device}_{i}")
+                # Histograma para LDR
+                ldr_df = df_device[df_device["sensor_type"] == "light_level"]
+                if not ldr_df.empty:
+                    st.markdown(f"<h5 style='color:{ACCENT_COLOR};'>💡 {device}: Nivel de Luz (LDR)</h5>", unsafe_allow_html=True)
+                    fig_ldr = px.histogram(
+                        ldr_df,
+                        x="timestamp",
+                        y="value",
+                        nbins=30,
+                        title=f"{device} - Histograma Nivel de Luz (LDR)",
+                        labels={"timestamp": "Fecha y hora", "value": "Nivel de luz"},
+                        template="plotly_white"
+                    )
+                    fig_ldr.update_layout(
+                        plot_bgcolor=BG_COLOR,
+                        paper_bgcolor=BG_COLOR,
+                        font_color=PRIMARY_COLOR,
+                        title_font=dict(size=18, color=ACCENT_COLOR)
+                    )
+                    st.plotly_chart(fig_ldr, use_container_width=True, key=f"hist_ldr_{device}_{i}")
+            else:
+                # Para otros dispositivos, mostrar como antes
+                col1, col2 = st.columns([2,1])
+                with col1:
+                    fig = px.line(
+                        df_device,
+                        x="timestamp",
+                        y="value",
+                        color="sensor_type",
+                        title=f"📊 {device}: Evolución temporal de sensores",
+                        labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
+                        template="plotly_white",
+                        line_shape="spline"
+                    )
+                    fig.update_layout(
+                        plot_bgcolor=BG_COLOR,
+                        paper_bgcolor=BG_COLOR,
+                        font_color=PRIMARY_COLOR,
+                        legend_title_text="Sensor",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        title_font=dict(size=20, color=ACCENT_COLOR)
+                    )
+                    fig.update_traces(line=dict(width=4), marker=dict(size=10))
+                    st.plotly_chart(fig, use_container_width=True, key=f"plot_{device}_{i}")
+                with col2:
+                    pie_df = df_device["sensor_type"].value_counts().reset_index()
+                    pie_df.columns = ["Tipo de sensor", "Registros"]
+                    fig_pie = px.pie(
+                        pie_df,
+                        names="Tipo de sensor",
+                        values="Registros",
+                        title=f"Proporción por tipo de sensor en {device}",
+                        color_discrete_sequence=px.colors.sequential.YlOrBr
+                    )
+                    fig_pie.update_traces(textinfo='percent+label')
+                    fig_pie.update_layout(title_font=dict(size=16, color=ACCENT_COLOR))
+                    st.plotly_chart(fig_pie, use_container_width=True, key=f"pie_{device}_{i}")
         else:
             st.warning(f"No hay datos para graficar en {device}.")
 else:
