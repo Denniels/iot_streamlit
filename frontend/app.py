@@ -39,6 +39,32 @@ st.markdown(f"""
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
 st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
+# Esquema visual del flujo de datos
+st.markdown(f"""
+<div style='width:100%; display:flex; justify-content:center; align-items:center; margin-bottom:20px;'>
+  <svg width='820' height='80' viewBox='0 0 820 80' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <g font-family='sans-serif' font-size='16' font-weight='bold'>
+      <rect x='10' y='20' width='120' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
+      <text x='70' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
+      <rect x='160' y='20' width='160' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
+      <text x='240' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
+      <rect x='350' y='20' width='160' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
+      <text x='430' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sincronización Supabase</text>
+      <rect x='540' y='20' width='180' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
+      <text x='630' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud Dashboard</text>
+      <!-- Flechas -->
+      <polygon points='130,40 150,40 140,35' fill='{PRIMARY_COLOR}'/>
+      <polygon points='320,40 340,40 330,35' fill='{PRIMARY_COLOR}'/>
+      <polygon points='510,40 530,40 520,35' fill='{PRIMARY_COLOR}'/>
+      <!-- Etiquetas -->
+      <text x='80' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Captura</text>
+      <text x='240' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Almacenamiento local</text>
+      <text x='430' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Sync cloud</text>
+      <text x='630' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Visualización y compartición</text>
+    </g>
+  </svg>
+</div>
+""", unsafe_allow_html=True)
 
 # Configuración Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
