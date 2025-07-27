@@ -5,6 +5,11 @@ import plotly.express as px
 import os
 import time
 
+from datetime import datetime
+
+# Inicializar variable de sesión para la última actualización
+if "last_update" not in st.session_state:
+    st.session_state.last_update = datetime.now()
 # Colores elegantes
 PRIMARY_COLOR = "#1a2639"  # Azul oscuro
 ACCENT_COLOR = "#e6b800"   # Dorado
