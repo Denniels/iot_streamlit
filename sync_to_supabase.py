@@ -37,8 +37,8 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env.local
 load_dotenv(dotenv_path=".env.local")
-from backend.postgres_client import db_client
 from supabase import create_client, Client
+from backend.postgres_client import db_client
 
 # Configuración Supabase desde .env.local
 def get_supabase_client():

@@ -224,3 +224,149 @@ connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  passw
 Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
 connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
 
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+nohup: ignoring input
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Traceback (most recent call last):
+  File "/home/daniel/repos/iot_streamlit/sync_to_supabase.py", line 53, in <module>
+    supabase: Client = get_supabase_client()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/daniel/repos/iot_streamlit/sync_to_supabase.py", line 50, in get_supabase_client
+    raise Exception("SUPABASE_ANON_KEY no está definido. Verifica .env.local o variables de entorno.")
+Exception: SUPABASE_ANON_KEY no está definido. Verifica .env.local o variables de entorno.
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
+Error conectando a PostgreSQL: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  password authentication failed for user "iot_user"
+
