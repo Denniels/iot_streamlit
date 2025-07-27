@@ -405,7 +405,6 @@ class IoTDashboard:
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
             f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
-        )
 
 # Ejecutar aplicación
 if __name__ == "__main__":
