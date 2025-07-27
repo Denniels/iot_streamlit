@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import plotly.express as px
 import os
+import time
 
 # Colores globales para el dashboard
 PRIMARY_COLOR = "#1a2639"  # Azul oscuro
