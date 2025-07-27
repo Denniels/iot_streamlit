@@ -39,28 +39,36 @@ st.markdown(f"""
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
 st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
-# Esquema visual del flujo de datos
+# Esquema visual del flujo de datos (responsive y elegante)
 st.markdown(f"""
-<div style='width:100%; display:flex; justify-content:center; align-items:center; margin-bottom:20px;'>
-  <svg width='820' height='80' viewBox='0 0 820 80' fill='none' xmlns='http://www.w3.org/2000/svg'>
+<div style='width:100%; max-width:900px; margin:auto; margin-bottom:24px; padding:0 10px;'>
+  <svg width='100%' height='110' viewBox='0 0 900 110' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
     <g font-family='sans-serif' font-size='16' font-weight='bold'>
-      <rect x='10' y='20' width='120' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
-      <text x='70' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
-      <rect x='160' y='20' width='160' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
-      <text x='240' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
-      <rect x='350' y='20' width='160' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
-      <text x='430' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sincronización Supabase</text>
-      <rect x='540' y='20' width='180' height='40' rx='20' fill='{ACCENT_COLOR}' opacity='0.15'/>
-      <text x='630' y='45' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud Dashboard</text>
-      <!-- Flechas -->
-      <polygon points='130,40 150,40 140,35' fill='{PRIMARY_COLOR}'/>
-      <polygon points='320,40 340,40 330,35' fill='{PRIMARY_COLOR}'/>
-      <polygon points='510,40 530,40 520,35' fill='{PRIMARY_COLOR}'/>
-      <!-- Etiquetas -->
-      <text x='80' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Captura</text>
-      <text x='240' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Almacenamiento local</text>
-      <text x='430' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Sync cloud</text>
-      <text x='630' y='70' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Visualización y compartición</text>
+      <!-- Sensores -->
+      <rect x='20' y='30' width='140' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='90' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4BB Sensores</text>
+      <text x='90' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Captura</text>
+      <!-- Jetson/PostgreSQL -->
+      <rect x='200' y='30' width='180' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='290' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>916 Jetson / PostgreSQL</text>
+      <text x='290' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Almacenamiento local</text>
+      <!-- Supabase -->
+      <rect x='420' y='30' width='180' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='510' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4E6 Supabase Cloud</text>
+      <text x='510' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Sincronización cloud</text>
+      <!-- Streamlit -->
+      <rect x='640' y='30' width='220' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='750' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4C8 Streamlit Cloud Dashboard</text>
+      <text x='750' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Visualización y compartición</text>
+      <!-- Flechas curvas -->
+      <path d='M160,55 Q180,55 200,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
+      <path d='M380,55 Q400,55 420,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
+      <path d='M600,55 Q620,55 640,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
+      <defs>
+        <marker id='arrowhead' markerWidth='10' markerHeight='7' refX='10' refY='3.5' orient='auto'>
+          <polygon points='0 0, 10 3.5, 0 7' fill='{PRIMARY_COLOR}' />
+        </marker>
+      </defs>
     </g>
   </svg>
 </div>
