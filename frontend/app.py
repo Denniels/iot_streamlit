@@ -47,19 +47,19 @@ st.markdown(f"""
       <!-- Tarjeta Sensores -->
       <rect x='30' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
       <text x='160' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
-      <text x='160' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
+      <text x='160' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
       <!-- Tarjeta Jetson/PostgreSQL -->
       <rect x='340' y='40' width='320' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
       <text x='500' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
-      <text x='500' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
+      <text x='500' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
       <!-- Tarjeta Supabase -->
       <rect x='700' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
       <text x='830' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
-      <text x='830' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
+      <text x='830' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
       <!-- Tarjeta Streamlit -->
       <rect x='1010' y='40' width='160' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
       <text x='1090' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud</text>
-      <text x='1090' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
+      <text x='1090' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
       <!-- Flechas pequeñas -->
       <path d='M290,75 L340,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
       <path d='M660,75 L700,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
