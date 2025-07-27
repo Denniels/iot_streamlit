@@ -45,32 +45,75 @@ def main():
             logger.info(f"Evento sistema: {event_type} - {device_id} - {message}")
     
     arduino = ArduinoDetector(LocalDB())
-    if not arduino.detect_usb_arduino():
+    # Detectar Arduino USB
+    usb_ok = False
+    try:
+        usb_ok = arduino.detect_usb_arduino()
+    except AttributeError:
+        # Si el método no existe, intentar detect_usb_arduino()
+        if hasattr(arduino, 'detect_usb_arduino'):
+            usb_ok = arduino.detect_usb_arduino()
+        else:
+            logger.error("No se pudo detectar Arduino USB: método no encontrado")
+            print("No se pudo detectar Arduino USB: método no encontrado")
+    if not usb_ok:
         logger.error("No se pudo detectar Arduino USB")
         print("No se pudo detectar Arduino USB")
-        sys.exit(1)
-    print(f"Arduino detectado en: {arduino.auto_detected_port}")
-    logger.info(f"Arduino detectado en: {arduino.auto_detected_port}")
-    
+    else:
+        print(f"Arduino USB detectado en: {arduino.auto_detected_port}")
+        logger.info(f"Arduino USB detectado en: {arduino.auto_detected_port}")
+
+    # Detectar Arduino Ethernet
+    print("Buscando Arduino Ethernet en la red...")
+    ethernet_devices = arduino.detect_ethernet_arduinos(network_range="192.168.0")
+    if ethernet_devices:
+        print(f"Dispositivos Ethernet detectados: {len(ethernet_devices)}")
+        for dev in ethernet_devices:
+            print(f"  - {dev['device_id']} en {dev['ip_address']}:{dev['metadata']['port']}")
+    else:
+        print("No se detectaron Arduinos Ethernet en la red.")
+
     # Adquisición continua
     print("Adquiriendo datos... (Ctrl+C para detener)")
     try:
         while True:
-            data = arduino.read_usb_data()
-            if data and data.get('message_type') == 'sensor_data':
-                sensors = data.get('sensors', {})
-                for sensor_name, value in sensors.items():
-                    if sensor_name != 'temperature_avg':
-                        sensor_data = {
-                            'device_id': data.get('device_id', 'arduino_usb'),
-                            'sensor_type': sensor_name,
-                            'value': float(value) if isinstance(value, (int, float)) else value,
-                            'unit': arduino._get_sensor_unit(sensor_name),
-                            'raw_data': data,
-                            'timestamp': datetime.now().isoformat()
-                        }
-                        arduino.db_client.insert_sensor_data(sensor_data)
-                        print(f"{sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
+            # USB
+            if usb_ok:
+                data = arduino.read_usb_data()
+                if data and data.get('message_type') == 'sensor_data':
+                    sensors = data.get('sensors', {})
+                    for sensor_name, value in sensors.items():
+                        if sensor_name != 'temperature_avg':
+                            sensor_data = {
+                                'device_id': data.get('device_id', 'arduino_usb'),
+                                'sensor_type': sensor_name,
+                                'value': float(value) if isinstance(value, (int, float)) else value,
+                                'unit': arduino._get_sensor_unit(sensor_name),
+                                'raw_data': data,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            arduino.db_client.insert_sensor_data(sensor_data)
+                            print(f"USB {sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
+            # Ethernet
+            if ethernet_devices:
+                for dev in ethernet_devices:
+                    ip = dev['ip_address']
+                    port = dev['metadata']['port']
+                    eth_data = arduino.read_ethernet_data(ip, port)
+                    if eth_data and eth_data.get('message_type') == 'sensor_data':
+                        sensors = eth_data.get('sensors', {})
+                        for sensor_name, value in sensors.items():
+                            if sensor_name != 'temperature_avg':
+                                sensor_data = {
+                                    'device_id': dev['device_id'],
+                                    'sensor_type': sensor_name,
+                                    'value': float(value) if isinstance(value, (int, float)) else value,
+                                    'unit': arduino._get_sensor_unit(sensor_name),
+                                    'raw_data': eth_data,
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                                arduino.db_client.insert_sensor_data(sensor_data)
+                                print(f"ETH {sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
             time.sleep(2)
     except KeyboardInterrupt:
         print("\nAdquisición detenida por el usuario.")
