@@ -54,7 +54,7 @@ def get_supabase_client():
 
 supabase: Client = get_supabase_client()
 
-SYNC_INTERVAL = 60  # segundos
+SYNC_INTERVAL = 30  # segundos
 BATCH_SIZE = 100
 
 def get_unsynced_sensor_data():
