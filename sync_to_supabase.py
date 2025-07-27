@@ -43,7 +43,7 @@ from supabase import create_client, Client
 # Configuración Supabase desde .env.local
 def get_supabase_client():
     url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_ANON_KEY")
+    key = os.getenv("SUPABASE_SERVICE_KEY")
     if not url:
         raise Exception("SUPABASE_URL no está definido. Verifica .env.local o variables de entorno.")
     if not key:
