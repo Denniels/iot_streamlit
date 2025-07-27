@@ -3,39 +3,36 @@ import pandas as pd
 import requests
 import plotly.express as px
 import os
-import time
-
-from datetime import datetime
-
-# Inicializar variable de sesión para la última actualización
-if "last_update" not in st.session_state:
-    st.session_state.last_update = datetime.now()
-# Colores elegantes
-PRIMARY_COLOR = "#1a2639"  # Azul oscuro
-ACCENT_COLOR = "#e6b800"   # Dorado
-BG_COLOR = "#f5f6fa"       # Fondo claro
-SUCCESS_COLOR = "#2ecc71"  # Verde confianza
-ERROR_COLOR = "#e74c3c"    # Rojo
-
-st.set_page_config(
-    page_title="IoT Dashboard - Jetson & Arduino",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-st.markdown(f"""
-    <style>
-    .reportview-container {{ background: {BG_COLOR}; }}
-    .sidebar .sidebar-content {{ background: {PRIMARY_COLOR}; color: white; }}
-    .css-1d391kg {{ color: {PRIMARY_COLOR}; }}
-    .css-1v0mbdj p {{ color: {PRIMARY_COLOR}; }}
-    .st-bb {{ background: {PRIMARY_COLOR}; }}
-    .st-bb:hover {{ background: {ACCENT_COLOR}; }}
-    .st-bb:active {{ background: {SUCCESS_COLOR}; }}
-    .st-bb:focus {{ background: {ACCENT_COLOR}; }}
-    </style>
-""", unsafe_allow_html=True)
+        with col1:
+            total_devices = len(devices)
+            st.metric(
+                "\U0001F4F1 Total Dispositivos",
+                total_devices,
+                delta=None
+            )
+        with col2:
+            st.metric(
+                "\u2705 Dispositivos Online",
+                online_devices,
+                delta=f"{online_devices}/{total_devices}"
+            )
+        with col3:
+            acquisition_status = "🟢 Activa" if acquisition_active else "🟡 Inactiva"
+            st.metric(
+                "\U0001F4CA Adquisición",
+                acquisition_status,
+                delta=None
+            )
+        with col4:
+            if last_data_time is not None:
+                delta_time = now - last_data_time.to_pydatetime()
+                st.metric(
+                    "\U0001F551 Última Actualización",
+                    f"{delta_time.seconds//60}m {delta_time.seconds%60}s",
+                    delta="hace"
+                )
+            else:
+                st.metric("\U0001F551 Última Actualización", "Sin datos", delta=None)
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
             st.metric(
