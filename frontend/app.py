@@ -74,6 +74,15 @@ class IoTDashboard:
 
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
+        st.markdown("""
+<div style='text-align: center;'>
+<b>🔄 Pipeline IoT End-to-End</b><br>
+<span style='font-size: 1.1em;'>
+🟦 <b>Arduino</b> &rarr; 🖥️ <b>Jetson Nano (PostgreSQL)</b> &rarr; ☁️ <b>Supabase Cloud</b> &rarr; 📊 <b>Streamlit Dashboard</b>
+</span><br>
+<i>Captura &rarr; Almacenamiento local &rarr; Sincronización cloud &rarr; Visualización en tiempo real</i>
+</div>
+""", unsafe_allow_html=True)
         data = self.get_sensor_data(200)
         if not data:
             st.error("No se pueden cargar los datos desde Supabase")
