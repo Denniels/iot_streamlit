@@ -391,9 +391,6 @@ class IoTDashboard:
     
     def run(self):
         """Ejecutar la aplicación principal"""
-        # Sidebar
-        self.render_sidebar()
-        
         # Navegación principal
         tab1, tab2 = st.tabs(["📋 Vista General", "📊 Tiempo Real"])
         
@@ -407,7 +404,7 @@ class IoTDashboard:
         st.markdown("---")
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
-            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}"
+            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
         )
 
 # Ejecutar aplicación
