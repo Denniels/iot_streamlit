@@ -16,6 +16,48 @@ from datetime import datetime
 if "last_update" not in st.session_state:
     st.session_state.last_update = datetime.now()
 
+# Banner informativo y diagrama de flujo
+st.title("IoT Streamlit Dashboard - Jetson Nano & Arduino")
+st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style='width:100%; max-width:1200px; margin:auto; margin-bottom:32px; padding:0 10px;'>
+  <svg width='100%' height='150' viewBox='0 0 1200 150' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
+    <g font-family='sans-serif' font-size='20' font-weight='bold'>
+      <!-- Tarjeta Sensores -->
+      <rect x='30' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='160' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
+      <text x='160' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
+      <!-- Tarjeta Jetson/PostgreSQL -->
+      <rect x='340' y='40' width='320' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='500' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
+      <text x='500' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
+      <!-- Tarjeta Supabase -->
+      <rect x='700' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='830' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
+      <text x='830' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
+      <!-- Tarjeta Streamlit -->
+      <rect x='1010' y='40' width='160' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='1090' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud</text>
+      <text x='1090' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
+      <!-- Flechas pequeñas -->
+      <path d='M290,75 L340,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M660,75 L700,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M960,75 L1010,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <defs>
+        <marker id='arrowhead' markerWidth='8' markerHeight='6' refX='8' refY='3' orient='auto'>
+          <polygon points='0 0, 8 3, 0 6' fill='{PRIMARY_COLOR}' />
+        </marker>
+      </defs>
+    </g>
+  </svg>
+</div>
+""", unsafe_allow_html=True)
+st.markdown("""
+<div style='max-width:900px; margin:auto; margin-bottom:16px; color:#444; font-size:16px;'>
+<b>Flujo de datos:</b> Los sensores capturan información y la envían a la Jetson Nano, donde se almacena localmente en PostgreSQL. Los datos se sincronizan automáticamente con Supabase Cloud y son consultados en tiempo real por el dashboard en Streamlit Cloud.
+</div>
+""", unsafe_allow_html=True)
+
 # Configuración Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st.secrets else os.getenv("SUPABASE_ANON_KEY")
