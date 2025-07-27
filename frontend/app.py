@@ -203,7 +203,6 @@ class IoTDashboard:
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
             f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
-            )
         
         with col2:
             online_count = len([d for d in devices if d.get('status') == 'online'])
