@@ -186,7 +186,7 @@ st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit
 
 class IoTDashboard:
     def get_device_data(self, device_id: str, limit: int = 50):
-        """Consulta los datos históricos de un dispositivo desde Supabase."""
+        # Consulta los datos históricos de un dispositivo desde Supabase.
         try:
             url = f"{SUPABASE_URL}/rest/v1/sensor_data?device_id=eq.{device_id}&order=timestamp.desc&limit={limit}"
             headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
@@ -204,7 +204,7 @@ class IoTDashboard:
     def render_sidebar(self):
         if "auto_refresh" not in st.session_state:
             st.session_state.auto_refresh = False
-        """Renderizar barra lateral con controles"""
+        # Renderizar barra lateral con controles
         st.sidebar.title("🌐 IoT Control Panel")
         st.sidebar.markdown("### 🔗 Estado de Conexión")
         st.sidebar.success("✅ Conectado a Supabase")
@@ -248,7 +248,7 @@ class IoTDashboard:
             st.sidebar.warning("Modo tiempo real desactivado. La Jetson Nano puede pausar la adquisición y ahorrar recursos.")
 
     def render_overview(self):
-        """Renderizar vista general del sistema"""
+        # Renderizar vista general del sistema
         st.title("🌐 IoT Dashboard - Vista General")
         # Usar devices_df y sensor_df directamente
         if devices_df.empty:
@@ -381,7 +381,7 @@ class IoTDashboard:
             st.info("No hay dispositivos detectados. Usa el botón 'Escanear Red' para buscar dispositivos.")
 
     def render_device_details(self, device_id: str):
-        """Renderizar detalles de un dispositivo específico"""
+        # Renderizar detalles de un dispositivo específico
         device_data = self.get_device_data(device_id, 50)
 
         if not device_data or not device_data.get("success"):
@@ -442,7 +442,7 @@ class IoTDashboard:
                 st.dataframe(df, use_container_width=True)
 
     def render_real_time_data(self):
-        """Renderizar vista de datos en tiempo real"""
+        # Renderizar vista de datos en tiempo real
         st.title("📊 Datos en Tiempo Real")
 
         # Obtener datos más recientes desde Supabase
