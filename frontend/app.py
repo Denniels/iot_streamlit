@@ -86,6 +86,7 @@ selected_device = st.sidebar.selectbox("Selecciona dispositivo", devices)
 
 # Últimos 5 registros por dispositivo
 st.subheader("Últimos 5 registros por dispositivo")
+st.markdown("<small>Esta tabla muestra los datos más recientes recibidos de cada dispositivo conectado. Útil para monitoreo rápido y diagnóstico inmediato.</small>", unsafe_allow_html=True)
 if not sensor_df.empty:
     for device in devices:
         st.markdown(f"<h5 style='color:{PRIMARY_COLOR};'>Dispositivo: {device}</h5>", unsafe_allow_html=True)
@@ -96,18 +97,35 @@ else:
 
 # Gráficas avanzadas por dispositivo
 st.subheader("Gráficas avanzadas por dispositivo")
+st.markdown("<small>Visualiza la evolución temporal de cada sensor en cada dispositivo. Permite identificar tendencias, anomalías y comparar el comportamiento de los sensores.</small>", unsafe_allow_html=True)
 if not sensor_df.empty:
     for i, device in enumerate(devices):
         df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
         if not df_device.empty:
-            fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
-            fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
+            fig = px.line(
+                df_device,
+                x="timestamp",
+                y="value",
+                color="sensor_type",
+                title=f"Evolución temporal de sensores en {device}",
+                labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
+                template="plotly_white"
+            )
+            fig.update_layout(
+                plot_bgcolor=BG_COLOR,
+                paper_bgcolor=BG_COLOR,
+                font_color=PRIMARY_COLOR,
+                legend_title_text="Sensor",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            fig.update_traces(line=dict(width=3), marker=dict(size=8))
             st.plotly_chart(fig, use_container_width=True, key=f"plot_{device}_{i}")
 else:
     st.info("No hay datos para graficar.")
 
 # Dashboard general avanzado
 st.subheader("Dashboard general avanzado")
+st.markdown("<small>Este gráfico muestra el historial completo de todos los sensores y dispositivos conectados. Permite comparar el comportamiento entre dispositivos y sensores en el tiempo.</small>", unsafe_allow_html=True)
 if not sensor_df.empty:
     fig = px.scatter(
         sensor_df,
@@ -115,8 +133,9 @@ if not sensor_df.empty:
         y="value",
         color="device_id",
         symbol="sensor_type",
-        title="Historial completo de sensores",
+        title="Historial completo de sensores y dispositivos",
         hover_data=["sensor_type", "value", "unit", "device_id"],
+        labels={"timestamp": "Fecha y hora", "value": "Valor", "device_id": "Dispositivo", "sensor_type": "Tipo de sensor"},
         template="plotly_white"
     )
     fig.update_layout(
