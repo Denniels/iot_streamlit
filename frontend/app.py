@@ -278,17 +278,30 @@ class IoTDashboard:
         if st.button("🔄 Actualizar"):
             st.rerun()
         st.sidebar.markdown("---")
-        st.sidebar.markdown("### 🔄 Auto-actualización")
-        st.session_state.auto_refresh = st.sidebar.checkbox("Activar auto-refresh", st.session_state.auto_refresh)
-        if st.session_state.auto_refresh:
-            refresh_rate = st.sidebar.slider("Segundos", 5, 60, 10)
-            st.sidebar.info(f"Próxima actualización en {refresh_rate}s")
+        st.sidebar.markdown("### ⚡ Visualización en Tiempo Real")
+        prev_real_time = st.session_state.get("real_time", False)
+        st.session_state.real_time = st.sidebar.toggle("Activar modo tiempo real", value=prev_real_time)
+        # Control de adquisición Jetson Nano mediante archivo local
+        control_flag_path = "/home/daniel/repos/iot_streamlit/acquisition_control.flag"
+        try:
+            if st.session_state.real_time != prev_real_time:
+                # Si el estado cambió, escribir el flag
+                with open(control_flag_path, "w") as f:
+                    f.write("ON" if st.session_state.real_time else "OFF")
+        except Exception as e:
+            st.sidebar.error(f"Error control Jetson Nano: {e}")
+        if st.session_state.real_time:
+            st.sidebar.info("La Jetson Nano está adquiriendo y enviando datos en tiempo real.")
+            st.session_state.refresh_rate = st.sidebar.slider("Intervalo de actualización (segundos)", 2, 60, st.session_state.get("refresh_rate", 10))
+            st.sidebar.success(f"Actualizando cada {st.session_state.refresh_rate}s")
             placeholder = st.sidebar.empty()
-            for i in range(refresh_rate, 0, -1):
+            for i in range(st.session_state.refresh_rate, 0, -1):
                 placeholder.text(f"Actualizando en {i}s...")
                 time.sleep(1)
             placeholder.text("Actualizando...")
             st.rerun()
+        else:
+            st.sidebar.warning("Modo tiempo real desactivado. La Jetson Nano puede pausar la adquisición y ahorrar recursos.")
 
     def render_overview(self):
         """Renderizar vista general del sistema"""

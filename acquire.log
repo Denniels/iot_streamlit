@@ -77,3 +77,44 @@
 /bin/sh: 1: /home/daniel/python3.12: not found
 /bin/sh: 1: /home/daniel/python3.12: not found
 /bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+/bin/sh: 1: /home/daniel/python3.12: not found
+nohup: ignoring input
+Traceback (most recent call last):
+  File "/home/daniel/repos/iot_streamlit/acquire_data.py", line 3, in <module>
+    from arduino_detector import get_sensor_data  # Debes implementar esta función
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: cannot import name 'get_sensor_data' from 'arduino_detector' (/home/daniel/repos/iot_streamlit/arduino_detector.py)
