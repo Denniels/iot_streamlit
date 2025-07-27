@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 import plotly.express as px
 import os
-""", unsafe_allow_html=True)
 
 # Configuración Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
