@@ -340,23 +340,35 @@ class IoTDashboard:
         """Renderizar vista de datos en tiempo real"""
         st.title("📊 Datos en Tiempo Real")
 
-        # Obtener datos más recientes
-        latest_data = self.get_latest_data()
-
-        if not latest_data or not latest_data.get("success"):
+        # Obtener datos más recientes desde Supabase
+        sensor_df = get_sensor_data()
+        if sensor_df.empty:
             st.error("No se pueden cargar los datos en tiempo real")
             return
 
-        data = latest_data.get("data", {})
+        # Mostrar los últimos 5 registros por dispositivo
+        st.subheader("Últimos 5 registros por dispositivo (Tiempo Real)")
+        devices = sensor_df["device_id"].unique()
+        for device in devices:
+            st.markdown(f"<h5 style='color:{PRIMARY_COLOR};'>Dispositivo: {device}</h5>", unsafe_allow_html=True)
+            df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp", ascending=False).head(5)
+            st.dataframe(df_device, use_container_width=True)
 
-        # Timestamp de los datos
-        timestamp = data.get('timestamp')
-        if timestamp:
-            st.info(f"📅 Última actualización: {timestamp}")
+        # Gráficas avanzadas por dispositivo
+        st.subheader("Gráficas avanzadas por dispositivo (Tiempo Real)")
+        for device in devices:
+            df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
+            if not df_device.empty:
+                fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
+                fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
+                st.plotly_chart(fig, use_container_width=True)
 
-        # Datos Arduino USB
-        arduino_usb = data.get('arduino_usb')
-        if arduino_usb:
+        # Dashboard general avanzado
+        st.subheader("Dashboard general avanzado (Tiempo Real)")
+        fig = px.scatter(sensor_df, x="timestamp", y="value", color="device_id", symbol="sensor_type", title="Historial completo de sensores")
+        fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
             st.markdown("### 🔌 Arduino USB")
 
             col1, col2 = st.columns(2)
