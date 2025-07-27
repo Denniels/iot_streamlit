@@ -293,113 +293,11 @@ class IoTDashboard:
                 # Mostrar tabla de datos
                 st.dataframe(df, use_container_width=True)
     
-    def render_real_time_data(self):
-        """Renderizar vista de datos en tiempo real"""
-        st.title("📊 Datos en Tiempo Real")
-        
-        # Obtener datos más recientes
-        latest_data = self.get_latest_data()
-        
-        if not latest_data or not latest_data.get("success"):
-            st.error("No se pueden cargar los datos en tiempo real")
-            return
-        
-        data = latest_data.get("data", {})
-        
-        # Timestamp de los datos
-        timestamp = data.get('timestamp')
-        if timestamp:
-            st.info(f"📅 Última actualización: {timestamp}")
-        
-        # Datos Arduino USB
-        arduino_usb = data.get('arduino_usb')
-        if arduino_usb:
-            st.markdown("### 🔌 Arduino USB")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.json(arduino_usb)
-            with col2:
-                # Crear gráfico si hay datos numéricos
-                try:
-                    if isinstance(arduino_usb, dict):
-                        numeric_data = {k: v for k, v in arduino_usb.items() 
-                                     if isinstance(v, (int, float))}
-                        if numeric_data:
-                            fig = px.bar(
-                                x=list(numeric_data.keys()),
-                                y=list(numeric_data.values()),
-                                title="Sensores Arduino USB"
-                            )
-                            st.plotly_chart(fig, use_container_width=True)
-                except Exception:
-                    pass
-        else:
-            st.info("🔌 Arduino USB: Sin datos")
-        
-        # Datos Arduinos Ethernet
-        arduino_ethernet = data.get('arduino_ethernet', [])
-        if arduino_ethernet:
-            st.markdown("### 🌐 Arduinos Ethernet")
-            
-            for i, arduino in enumerate(arduino_ethernet):
-                with st.expander(f"Arduino {arduino.get('device_id', i+1)}"):
-                    st.json(arduino.get('data', {}))
-        else:
-            st.info("🌐 Arduinos Ethernet: Sin datos")
-        
-        # Datos Modbus
-        modbus_devices = data.get('modbus_devices', {})
-        if modbus_devices:
-            st.markdown("### 🔧 Dispositivos Modbus")
-            
-            for device_id, device_data in modbus_devices.items():
-                with st.expander(f"Dispositivo Modbus {device_id}"):
-                    if device_data:
-                        # Crear DataFrame para mejor visualización
-                        df = pd.DataFrame(device_data)
-                        st.dataframe(df, use_container_width=True)
-                        
-                        # Gráfico de valores
-                        if 'value' in df.columns and 'address' in df.columns:
-                            fig = px.bar(
-                                df,
-                                x='address',
-                                y='value',
-                                title=f"Registros Modbus - {device_id}"
-                            )
-                            st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.info("Sin datos disponibles")
-        else:
-            st.info("🔧 Dispositivos Modbus: Sin datos")
-        
-        # Errores
-        errors = data.get('errors', [])
-        if errors:
-            st.markdown("### ⚠️ Errores Recientes")
-            for error in errors:
-                st.error(error)
-        
-        # Auto-refresh para tiempo real
-        if st.button("🔄 Refrescar Datos"):
-            st.rerun()
-        
-        # Refresh automático cada 5 segundos
-        time.sleep(5)
-        st.rerun()
     
     def run(self):
         """Ejecutar la aplicación principal"""
-        # Navegación principal
-        tab1, tab2 = st.tabs(["📋 Vista General", "📊 Tiempo Real"])
-        
-        with tab1:
-            self.render_overview()
-        
-        with tab2:
-            self.render_real_time_data()
-        
+        # Solo vista general
+        self.render_overview()
         # Footer
         st.markdown("---")
         st.markdown(
