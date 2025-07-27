@@ -38,38 +38,30 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
-st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
-# Esquema visual del flujo de datos (tarjetas separadas y flechas pequeñas, responsive)
-st.markdown(f"""
-<div style='width:100%; max-width:1200px; margin:auto; margin-bottom:32px; padding:0 10px;'>
-  <svg width='100%' height='150' viewBox='0 0 1200 150' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
-    <g font-family='sans-serif' font-size='20' font-weight='bold'>
+            st.metric(
+                "\u2705 Dispositivos Online",
+                online_devices,
+                delta=f"{online_devices}/{total_devices}"
+            )
       <!-- Tarjeta Sensores -->
       <rect x='30' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='160' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
-      <text x='160' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
-      <!-- Tarjeta Jetson/PostgreSQL -->
-      <rect x='340' y='40' width='320' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='500' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
-      <text x='500' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
-      <!-- Tarjeta Supabase -->
-      <rect x='700' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='830' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
-      <text x='830' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
-      <!-- Tarjeta Streamlit -->
+            acquisition_status = "🟢 Activa" if acquisition_active else "🟡 Inactiva"
+            st.metric(
+                "\U0001F4CA Adquisición",
+                acquisition_status,
+                delta=None
+            )
       <rect x='1010' y='40' width='160' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
       <text x='1090' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud</text>
-      <text x='1090' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
-      <!-- Flechas pequeñas -->
-      <path d='M290,75 L340,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M660,75 L700,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M960,75 L1010,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <defs>
-        <marker id='arrowhead' markerWidth='8' markerHeight='6' refX='8' refY='3' orient='auto'>
-          <polygon points='0 0, 8 3, 0 6' fill='{PRIMARY_COLOR}' />
-        </marker>
-      </defs>
-    </g>
+            if last_data_time is not None:
+                delta_time = now - last_data_time.to_pydatetime()
+                st.metric(
+                    "\U0001F551 Última Actualización",
+                    f"{delta_time.seconds//60}m {delta_time.seconds%60}s",
+                    delta="hace"
+                )
+            else:
+                st.metric("\U0001F551 Última Actualización", "Sin datos", delta=None)
   </svg>
 </div>
 """, unsafe_allow_html=True)
