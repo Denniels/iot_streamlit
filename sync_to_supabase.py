@@ -33,16 +33,21 @@ Sincroniza datos nuevos de la tabla sensor_data a Supabase.
 
 import time
 import os
-import json
 from dotenv import load_dotenv
-load_dotenv('.env.local')
+
+# Cargar variables de entorno desde .env.local
+load_dotenv(dotenv_path=".env.local")
 from backend.postgres_client import db_client
 from supabase import create_client, Client
 
 # Configuración Supabase desde .env.local
 def get_supabase_client():
-    url = os.getenv('SUPABASE_URL')
-    key = os.getenv('SUPABASE_SERVICE_KEY')
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_ANON_KEY")
+    if not url:
+        raise Exception("SUPABASE_URL no está definido. Verifica .env.local o variables de entorno.")
+    if not key:
+        raise Exception("SUPABASE_ANON_KEY no está definido. Verifica .env.local o variables de entorno.")
     return create_client(url, key)
 
 supabase: Client = get_supabase_client()
