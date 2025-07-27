@@ -1,3 +1,5 @@
+import json
+
 def get_unsynced_devices():
     query = "SELECT * FROM devices;"
     return db_client.execute_query(query)
