@@ -4,6 +4,13 @@ import requests
 import plotly.express as px
 import os
 
+# Colores globales para el dashboard
+PRIMARY_COLOR = "#1a2639"  # Azul oscuro
+ACCENT_COLOR = "#e6b800"   # Dorado
+BG_COLOR = "#f5f6fa"       # Fondo claro
+SUCCESS_COLOR = "#2ecc71"  # Verde confianza
+ERROR_COLOR = "#e74c3c"    # Rojo
+
 # Configuración Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st.secrets else os.getenv("SUPABASE_ANON_KEY")
