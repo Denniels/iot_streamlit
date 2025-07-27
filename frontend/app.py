@@ -224,6 +224,18 @@ st.markdown("<small>Visualización profesional del historial completo de sensore
 if not sensor_df.empty and len(devices) > 0:
     col1, col2 = st.columns([2,1])
     with col1:
+        # Colores suaves y símbolos simples
+        color_map = {
+            "arduino_usb_001": "#6fa8dc",
+            "arduino_ethernet_192_168_0_110": "#f6b26b"
+        }
+        symbol_map = {
+            "temperature_1": "circle",
+            "temperature_2": "diamond",
+            "temperature_3": "x",
+            "temperature_avg": "square",
+            "light_level": "triangle-up"
+        }
         fig = px.scatter(
             sensor_df,
             x="timestamp",
@@ -233,19 +245,22 @@ if not sensor_df.empty and len(devices) > 0:
             title="🌐 Historial completo de sensores y dispositivos",
             hover_data=["sensor_type", "value", "unit", "device_id"],
             labels={"timestamp": "Fecha y hora", "value": "Valor", "device_id": "Dispositivo", "sensor_type": "Tipo de sensor"},
-            template="plotly_white"
+            template="plotly_white",
+            color_discrete_map=color_map,
+            symbol_map=symbol_map
         )
         fig.update_layout(
             plot_bgcolor=BG_COLOR,
             paper_bgcolor=BG_COLOR,
             font_color=PRIMARY_COLOR,
             legend_title_text="Dispositivo",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            title_font=dict(size=22, color=ACCENT_COLOR)
+            legend=dict(orientation="h", yanchor="top", y=1.15, xanchor="center", x=0.5, font=dict(size=14)),
+            title_font=dict(size=22, color=ACCENT_COLOR),
+            margin=dict(t=80, b=40, l=20, r=20)
         )
-        fig.update_traces(marker=dict(size=14, line=dict(width=3, color=ACCENT_COLOR)))
+        fig.update_traces(marker=dict(size=10, line=dict(width=2, color=PRIMARY_COLOR)), opacity=0.85)
         st.plotly_chart(fig, use_container_width=True, key="general_scatter_dashboard")
-        st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
+        st.markdown(f"<h6 style='color:{SUCCESS_COLOR}; text-align:right;'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
     with col2:
         # Gráfico de torta: proporción de registros por dispositivo
         pie_df = sensor_df["device_id"].value_counts().reset_index()
