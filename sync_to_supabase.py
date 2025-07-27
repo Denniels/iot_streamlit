@@ -49,6 +49,8 @@ def sync_data():
     for row in new_data or []:
         # Eliminar el campo 'id' para evitar conflictos
         row.pop('id', None)
+        # Eliminar el campo 'created_at' para evitar error de Supabase
+        row.pop('created_at', None)
         # Convertir el campo 'value' a float si es posible
         if 'value' in row:
             try:
@@ -59,14 +61,13 @@ def sync_data():
                     row['value'] = float(row['value'])
             except Exception:
                 pass
-        # Convertir timestamp y created_at a string ISO si son datetime
-        for k in ['timestamp', 'created_at']:
-            if k in row:
-                try:
-                    if hasattr(row[k], 'isoformat'):
-                        row[k] = row[k].isoformat()
-                except Exception:
-                    pass
+        # Convertir timestamp a string ISO si es datetime
+        if 'timestamp' in row:
+            try:
+                if hasattr(row['timestamp'], 'isoformat'):
+                    row['timestamp'] = row['timestamp'].isoformat()
+            except Exception:
+                pass
         try:
             if supabase_client.insert_sensor_data(row):
                 success_count += 1

@@ -2,7 +2,7 @@
 Dashboard principal de Streamlit para el sistema IoT
 """
 import streamlit as st
-import requests
+from supabase import create_client, Client
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -49,8 +49,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Configuración de la API
-API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000")
+
+# Configuración de Supabase
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 class IoTDashboard:
     """Clase principal del dashboard"""
@@ -155,81 +158,51 @@ class IoTDashboard:
         
         with col1:
             if st.button("🔍 Escanear Red"):
-                with st.spinner("Escaneando..."):
-                    if self.trigger_scan():
-                        st.success("Escaneo iniciado")
-                    time.sleep(2)
-                    st.rerun()
-        
-        with col2:
-            if st.button("🔄 Actualizar"):
-                st.session_state.last_update = datetime.now()
-                st.rerun()
-        
-        # Control de adquisición
-        st.sidebar.markdown("### 📊 Adquisición de Datos")
-        
-        status = self.get_system_status()
-        if status:
-            is_running = status.get("running", False)
-            
-            if is_running:
-                st.sidebar.success("🟢 Adquisición activa")
-                if st.sidebar.button("⏹️ Detener"):
-                    if self.stop_acquisition():
-                        st.success("Adquisición detenida")
-                        time.sleep(1)
-                        st.rerun()
-            else:
-                st.sidebar.warning("🟡 Adquisición inactiva")
-                interval = st.sidebar.slider("Intervalo (seg)", 5, 60, 10)
-                if st.sidebar.button("▶️ Iniciar"):
-                    if self.start_acquisition(interval):
-                        st.success("Adquisición iniciada")
-                        time.sleep(1)
-                        st.rerun()
-        
-        st.sidebar.markdown("---")
-        
-        # Auto-refresh
-        st.sidebar.markdown("### 🔄 Auto-actualización")
-        st.session_state.auto_refresh = st.sidebar.checkbox("Activar auto-refresh", st.session_state.auto_refresh)
-        
-        if st.session_state.auto_refresh:
-            refresh_rate = st.sidebar.slider("Segundos", 5, 60, 10)
-            st.sidebar.info(f"Próxima actualización en {refresh_rate}s")
-            
-            # Placeholder para countdown
-            placeholder = st.sidebar.empty()
-            for i in range(refresh_rate, 0, -1):
-                placeholder.text(f"Actualizando en {i}s...")
-                time.sleep(1)
-            placeholder.text("Actualizando...")
-            st.rerun()
-    
+class IoTDashboard:
+    """Dashboard que consulta datos directamente de Supabase"""
+    def __init__(self):
+        if 'last_update' not in st.session_state:
+            st.session_state.last_update = datetime.now()
+        if 'auto_refresh' not in st.session_state:
+            st.session_state.auto_refresh = False
+        if 'selected_device' not in st.session_state:
+            st.session_state.selected_device = None
+
+    def get_sensor_data(self, limit=100):
+        try:
+            response = supabase.table("sensor_data").select("*").order("timestamp", desc=True).limit(limit).execute()
+            return response.data
+        except Exception as e:
+            st.error(f"❌ Error consultando Supabase: {e}")
+            return None
+
     def render_overview(self):
-        """Renderizar vista general del sistema"""
         st.title("🌐 IoT Dashboard - Vista General")
-        
-        # Obtener datos del sistema
-        status = self.get_system_status()
-        devices_response = self.get_devices()
-        
-        if not status or not devices_response:
-            st.error("No se pueden cargar los datos del sistema")
+        data = self.get_sensor_data(100)
+        if not data:
+            st.error("No se pueden cargar los datos desde Supabase")
             return
-        
-        devices = devices_response.get("data", [])
-        
-        # Métricas principales
-        col1, col2, col3, col4 = st.columns(4)
-        
+        df = pd.DataFrame(data)
+        if df.empty:
+            st.info("No hay datos disponibles en Supabase.")
+            return
+        # Mostrar tabla principal
+        st.markdown("### � Últimos datos de sensores")
+        st.dataframe(df, use_container_width=True)
+        # Métricas rápidas
+        st.markdown("### 📊 Métricas rápidas")
+        col1, col2 = st.columns(2)
         with col1:
-            total_devices = len(devices)
-            st.metric(
-                "📱 Total Dispositivos",
-                total_devices,
-                delta=None
+            st.metric("Total registros", len(df))
+        with col2:
+            st.metric("Última actualización", str(df['timestamp'].max()))
+
+    def run(self):
+        self.render_overview()
+        st.markdown("---")
+        st.markdown(
+            "🌐 **IoT Streamlit Dashboard** | "
+            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
             )
         
         with col2:

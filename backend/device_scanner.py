@@ -115,11 +115,10 @@ class DeviceScanner:
         """Identificar tipo de dispositivo basado en puertos abiertos"""
         device_info = {
             'ip_address': ip,
-            'ports': ports,
             'device_type': 'unknown',
             'name': f'Device {ip}',
             'status': 'online',
-            'metadata': {}
+            'metadata': {'ports': ports}
         }
         
         # Lógica de identificación basada en puertos

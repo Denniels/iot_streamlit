@@ -141,7 +141,6 @@ class ArduinoDetector:
                             'device_id': data.get('device_id', 'arduino_usb'),
                             'device_type': 'arduino_usb',
                             'name': 'Arduino USB',
-                            'port': detected_port,
                             'status': 'online',
                             'metadata': {
                                 'baudrate': Config.USB_BAUDRATE,
@@ -160,7 +159,6 @@ class ArduinoDetector:
                             'device_id': 'arduino_usb',
                             'device_type': 'arduino_usb',
                             'name': 'Arduino USB',
-                            'port': detected_port,
                             'status': 'online',
                             'metadata': {
                                 'baudrate': Config.USB_BAUDRATE
@@ -318,9 +316,8 @@ class ArduinoDetector:
                                     'device_type': 'arduino_ethernet',
                                     'name': f'Arduino Ethernet {ip}',
                                     'ip_address': ip,
-                                    'port': port,
                                     'status': 'online',
-                                    'metadata': {'protocol': 'tcp'}
+                                    'metadata': {'protocol': 'tcp', 'port': port}
                                 }
                                 
                                 self.db_client.register_device(device_data)

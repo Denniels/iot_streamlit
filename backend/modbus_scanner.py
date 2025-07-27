@@ -1,7 +1,7 @@
 """
 Escáner y cliente para dispositivos Modbus
 """
-from pymodbus.client.sync import ModbusTcpClient, ModbusSerialClient
+from pymodbus.client import ModbusTcpClient, ModbusSerialClient
 from pymodbus.exceptions import ModbusException
 import time
 from datetime import datetime

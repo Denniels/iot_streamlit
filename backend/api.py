@@ -9,7 +9,7 @@ import uvicorn
 from datetime import datetime
 import asyncio
 
-from backend.config import get_logger, IOT_CONFIG
+from backend.config import get_logger
 from backend.data_acquisition import DataAcquisition
 from backend.db_writer import SupabaseClient
 
