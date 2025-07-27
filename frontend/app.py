@@ -476,7 +476,7 @@ class IoTDashboard:
         st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
 
     def run(self):
-        """Ejecutar la aplicación principal"""
+        # Ejecutar la aplicación principal
         # Sidebar
         self.render_sidebar()
 
