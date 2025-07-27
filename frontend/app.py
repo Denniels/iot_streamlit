@@ -64,7 +64,7 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else o
 SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st.secrets else os.getenv("SUPABASE_ANON_KEY")
 
 # Consulta a Supabase REST API
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def get_sensor_data():
     url = f"{SUPABASE_URL}/rest/v1/sensor_data?select=*"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
@@ -283,7 +283,8 @@ class IoTDashboard:
         control_flag_path = "/home/daniel/repos/iot_streamlit/acquisition_control.flag"
         try:
             if st.session_state.real_time != prev_real_time:
-                # Si el estado cambió, escribir el flag
+                # Crear el archivo si no existe antes de escribir
+                os.makedirs(os.path.dirname(control_flag_path), exist_ok=True)
                 with open(control_flag_path, "w") as f:
                     f.write("ON" if st.session_state.real_time else "OFF")
         except Exception as e:
