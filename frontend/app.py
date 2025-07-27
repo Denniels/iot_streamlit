@@ -97,12 +97,12 @@ else:
 # Gráficas avanzadas por dispositivo
 st.subheader("Gráficas avanzadas por dispositivo")
 if not sensor_df.empty:
-    for device in devices:
+    for i, device in enumerate(devices):
         df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
         if not df_device.empty:
             fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
             fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"plot_{device}_{i}")
 else:
     st.info("No hay datos para graficar.")
 
@@ -361,12 +361,12 @@ class IoTDashboard:
 
         # Gráficas avanzadas por dispositivo
         st.subheader("Gráficas avanzadas por dispositivo (Tiempo Real)")
-        for device in devices:
+        for i, device in enumerate(devices):
             df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
             if not df_device.empty:
                 fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
                 fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"realtime_plot_{device}_{i}")
 
         # Dashboard general avanzado
         st.subheader("Dashboard general avanzado (Tiempo Real)")
