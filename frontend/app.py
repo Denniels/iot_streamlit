@@ -254,6 +254,19 @@ else:
 st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit Cloud & Supabase.</small>", unsafe_allow_html=True)
 
 class IoTDashboard:
+    def get_device_data(self, device_id: str, limit: int = 50):
+        """Consulta los datos históricos de un dispositivo desde Supabase."""
+        try:
+            url = f"{SUPABASE_URL}/rest/v1/sensor_data?device_id=eq.{device_id}&order=timestamp.desc&limit={limit}"
+            headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+            r = requests.get(url, headers=headers)
+            if r.status_code == 200:
+                data = r.json()
+                return {"success": True, "data": data}
+            else:
+                return {"success": False, "data": [], "error": r.text}
+        except Exception as e:
+            return {"success": False, "data": [], "error": str(e)}
     def __init__(self):
         pass
 
