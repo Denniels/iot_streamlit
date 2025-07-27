@@ -85,14 +85,17 @@ class IoTDashboard:
 
         # Selección de dispositivo
         st.markdown("### Selecciona un dispositivo para visualizar sus datos")
-        device_ids = df['device_id'].unique().tolist()
+        device_ids = df['device_id'].drop_duplicates().tolist()
         selected_device = st.selectbox("Dispositivo:", device_ids)
 
         df_device = df[df['device_id'] == selected_device]
 
-        # Mostrar tabla principal filtrada
+        # Mostrar tabla principal filtrada o mensaje si no hay datos
         st.markdown(f"### Últimos datos de sensores - {selected_device}")
-        st.dataframe(df_device, use_container_width=True)
+        if df_device.empty:
+            st.info(f"No hay datos disponibles para {selected_device} en Supabase.")
+        else:
+            st.dataframe(df_device, use_container_width=True)
 
         # Métricas rápidas
         st.markdown("### 📊 Métricas rápidas")
@@ -100,12 +103,14 @@ class IoTDashboard:
         with col1:
             st.metric("Total registros", len(df_device))
         with col2:
-            st.metric("Última actualización", str(df_device['timestamp'].max()))
+            if not df_device.empty:
+                st.metric("Última actualización", str(df_device['timestamp'].max()))
+            else:
+                st.metric("Última actualización", "Sin datos")
 
         # Visualización de variables
         st.markdown("### 📈 Gráficos de variables")
-        variables = [col for col in df_device.columns if col.startswith('temperature') or col == 'value' or col == 'light_level']
-        if 'sensor_type' in df_device.columns and 'value' in df_device.columns:
+        if not df_device.empty and 'sensor_type' in df_device.columns and 'value' in df_device.columns:
             sensor_types = df_device['sensor_type'].unique().tolist()
             for sensor in sensor_types:
                 df_sensor = df_device[df_device['sensor_type'] == sensor]
