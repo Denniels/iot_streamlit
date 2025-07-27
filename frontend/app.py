@@ -283,8 +283,7 @@ class IoTDashboard:
         control_flag_path = "/home/daniel/repos/iot_streamlit/acquisition_control.flag"
         try:
             if st.session_state.real_time != prev_real_time:
-                # Crear el archivo si no existe antes de escribir
-                os.makedirs(os.path.dirname(control_flag_path), exist_ok=True)
+                # Escribir el flag directamente (el directorio ya existe)
                 with open(control_flag_path, "w") as f:
                     f.write("ON" if st.session_state.real_time else "OFF")
         except Exception as e:
