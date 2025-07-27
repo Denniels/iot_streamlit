@@ -54,110 +54,6 @@ st.markdown("""
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-class IoTDashboard:
-    """Clase principal del dashboard"""
-    
-    def __init__(self):
-        self.api_url = API_BASE_URL
-        
-        # Estado de la aplicación
-        if 'last_update' not in st.session_state:
-            st.session_state.last_update = datetime.now()
-        if 'auto_refresh' not in st.session_state:
-            st.session_state.auto_refresh = False
-        if 'selected_device' not in st.session_state:
-            st.session_state.selected_device = None
-    
-    def make_api_request(self, endpoint: str):
-        """Realizar petición a la API con manejo de errores"""
-        try:
-            response = requests.get(f"{self.api_url}{endpoint}", timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.ConnectionError:
-            st.error("❌ No se puede conectar con el backend. Verifica que esté ejecutándose.")
-            return None
-        except requests.exceptions.Timeout:
-            st.error("⏱️ Timeout conectando con el backend")
-            return None
-        except requests.exceptions.RequestException as e:
-            st.error(f"❌ Error de API: {e}")
-            return None
-    
-    def get_system_status(self):
-        """Obtener estado del sistema"""
-        return self.make_api_request("/status")
-    
-    def get_devices(self):
-        """Obtener lista de dispositivos"""
-        return self.make_api_request("/devices")
-    
-    def get_latest_data(self):
-        """Obtener datos más recientes"""
-        return self.make_api_request("/data")
-    
-    def get_device_data(self, device_id: str, limit: int = 100):
-        """Obtener datos de un dispositivo específico"""
-        return self.make_api_request(f"/data/{device_id}?limit={limit}")
-    
-    def trigger_scan(self):
-        """Disparar escaneo de red"""
-        try:
-            response = requests.post(f"{self.api_url}/scan/network", timeout=30)
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error iniciando escaneo: {e}")
-            return False
-    
-    def start_acquisition(self, interval: int = 10):
-        """Iniciar adquisición continua"""
-        try:
-            response = requests.post(f"{self.api_url}/acquisition/start?interval={interval}")
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error iniciando adquisición: {e}")
-            return False
-    
-    def stop_acquisition(self):
-        """Detener adquisición continua"""
-        try:
-            response = requests.post(f"{self.api_url}/acquisition/stop")
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            st.error(f"Error deteniendo adquisición: {e}")
-            return False
-    
-    def render_sidebar(self):
-        """Renderizar barra lateral con controles"""
-        st.sidebar.title("🌐 IoT Control Panel")
-        
-        # Estado de conexión
-        st.sidebar.markdown("### 🔗 Estado de Conexión")
-        
-        # Verificar conexión con API
-        try:
-            health = self.make_api_request("/health")
-            if health and health.get("status") == "healthy":
-                st.sidebar.success("✅ Backend conectado")
-                st.sidebar.metric("Dispositivos", health.get("devices_count", 0))
-            else:
-                st.sidebar.error("❌ Backend desconectado")
-        except:
-            st.sidebar.error("❌ Sin conexión")
-        
-        st.sidebar.markdown("---")
-        
-        # Controles de sistema
-        st.sidebar.markdown("### ⚙️ Controles de Sistema")
-        
-        col1, col2 = st.sidebar.columns(2)
-        
-        with col1:
-            if st.button("🔍 Escanear Red"):
 class IoTDashboard:
     """Dashboard que consulta datos directamente de Supabase"""
     def __init__(self):
@@ -179,6 +75,30 @@ class IoTDashboard:
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
         data = self.get_sensor_data(100)
+        if not data:
+            st.error("No se pueden cargar los datos desde Supabase")
+            return
+        df = pd.DataFrame(data)
+        if df.empty:
+            st.info("No hay datos disponibles en Supabase.")
+            return
+        # Mostrar tabla principal
+        st.markdown("### Últimos datos de sensores")
+        st.dataframe(df, use_container_width=True)
+        # Métricas rápidas
+        st.markdown("### 📊 Métricas rápidas")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total registros", len(df))
+        with col2:
+            st.metric("Última actualización", str(df['timestamp'].max()))
+
+    def run(self):
+        self.render_overview()
+        st.markdown("---")
+        st.markdown(
+            "🌐 **IoT Streamlit Dashboard** | "
+            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
         if not data:
             st.error("No se pueden cargar los datos desde Supabase")
             return
