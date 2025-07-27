@@ -39,34 +39,34 @@ st.markdown(f"""
 
 st.title("IoT Dashboard - Jetson Nano & Arduino")
 st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
-# Esquema visual del flujo de datos (responsive y elegante)
+# Esquema visual del flujo de datos (tarjetas separadas y flechas pequeñas, responsive)
 st.markdown(f"""
-<div style='width:100%; max-width:900px; margin:auto; margin-bottom:24px; padding:0 10px;'>
-  <svg width='100%' height='110' viewBox='0 0 900 110' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
-    <g font-family='sans-serif' font-size='16' font-weight='bold'>
-      <!-- Sensores -->
-      <rect x='20' y='30' width='140' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='90' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4BB Sensores</text>
-      <text x='90' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Captura</text>
-      <!-- Jetson/PostgreSQL -->
-      <rect x='200' y='30' width='180' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='290' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>916 Jetson / PostgreSQL</text>
-      <text x='290' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Almacenamiento local</text>
-      <!-- Supabase -->
-      <rect x='420' y='30' width='180' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='510' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4E6 Supabase Cloud</text>
-      <text x='510' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Sincronización cloud</text>
-      <!-- Streamlit -->
-      <rect x='640' y='30' width='220' height='50' rx='25' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='750' y='60' text-anchor='middle' fill='{PRIMARY_COLOR}'>4C8 Streamlit Cloud Dashboard</text>
-      <text x='750' y='90' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='12'>Visualización y compartición</text>
-      <!-- Flechas curvas -->
-      <path d='M160,55 Q180,55 200,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
-      <path d='M380,55 Q400,55 420,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
-      <path d='M600,55 Q620,55 640,55' stroke='{PRIMARY_COLOR}' stroke-width='3' fill='none' marker-end='url(#arrowhead)'/>
+<div style='width:100%; max-width:1100px; margin:auto; margin-bottom:32px; padding:0 10px;'>
+  <svg width='100%' height='140' viewBox='0 0 1100 140' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
+    <g font-family='sans-serif' font-size='18' font-weight='bold'>
+      <!-- Tarjeta Sensores -->
+      <rect x='30' y='40' width='210' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='135' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
+      <text x='135' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Captura</text>
+      <!-- Tarjeta Jetson/PostgreSQL -->
+      <rect x='300' y='40' width='260' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='430' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
+      <text x='430' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Almacenamiento local</text>
+      <!-- Tarjeta Supabase -->
+      <rect x='600' y='40' width='220' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='710' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
+      <text x='710' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Sincronización cloud</text>
+      <!-- Tarjeta Streamlit -->
+      <rect x='860' y='40' width='210' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='965' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud Dashboard</text>
+      <text x='965' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Visualización y compartición</text>
+      <!-- Flechas pequeñas -->
+      <path d='M240,70 L300,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M560,70 L600,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M820,70 L860,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
       <defs>
-        <marker id='arrowhead' markerWidth='10' markerHeight='7' refX='10' refY='3.5' orient='auto'>
-          <polygon points='0 0, 10 3.5, 0 7' fill='{PRIMARY_COLOR}' />
+        <marker id='arrowhead' markerWidth='8' markerHeight='6' refX='8' refY='3' orient='auto'>
+          <polygon points='0 0, 8 3, 0 6' fill='{PRIMARY_COLOR}' />
         </marker>
       </defs>
     </g>
