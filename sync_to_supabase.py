@@ -1,123 +1,72 @@
-import json
-
-def get_unsynced_devices():
-    query = "SELECT * FROM devices;"
-    return db_client.execute_query(query)
-
-def sync_devices_to_supabase():
-    devices = get_unsynced_devices()
-    if not devices:
-        print("No hay dispositivos para sincronizar.")
-        return
-    # Filtrar y serializar campos válidos
-    valid_fields = ['device_id', 'device_type', 'name', 'ip_address', 'port', 'status', 'last_seen', 'metadata', 'updated_at']
-    filtered_devices = []
-    for device in devices:
-        filtered = {k: v for k, v in device.items() if k in valid_fields}
-        # Serializar datetime
-        for dt_field in ['last_seen', 'updated_at']:
-            if dt_field in filtered and hasattr(filtered[dt_field], 'isoformat'):
-                filtered[dt_field] = filtered[dt_field].isoformat()
-        # Serializar metadata JSON
-        if 'metadata' in filtered and isinstance(filtered['metadata'], dict):
-            filtered['metadata'] = json.dumps(filtered['metadata'])
-        filtered_devices.append(filtered)
-    response = supabase.table('devices').upsert(filtered_devices).execute()
-    if hasattr(response, 'status') and response.status in [200, 201]:
-        print(f"Sincronizados {len(filtered_devices)} dispositivos.")
-    else:
-        print("Error al sincronizar dispositivos:", response)
-
+#!/usr/bin/env python3
 """
-Script de sincronización: PostgreSQL local → Supabase
-Sincroniza datos nuevos de la tabla sensor_data a Supabase.
+Sincroniza los datos de la base local PostgreSQL con Supabase
 """
-
+import sys
 import time
-import os
-from dotenv import load_dotenv
+from datetime import datetime
+from backend.postgres_client import PostgreSQLClient
+from backend.db_writer import SupabaseClient
+from backend.config import get_logger, setup_logging
 
-# Cargar variables de entorno desde .env.local
-load_dotenv(dotenv_path=".env.local")
-from supabase import create_client, Client
-from backend.postgres_client import db_client
+setup_logging()
+logger = get_logger(__name__)
 
-# Configuración Supabase desde .env.local
-def get_supabase_client():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_KEY")
-    if not url:
-        raise Exception("SUPABASE_URL no está definido. Verifica .env.local o variables de entorno.")
-    if not key:
-        raise Exception("SUPABASE_ANON_KEY no está definido. Verifica .env.local o variables de entorno.")
-    return create_client(url, key)
+def get_latest_supabase_timestamp(supabase_client):
+    """Obtiene el timestamp más reciente en Supabase"""
+    data = supabase_client.get_latest_sensor_data(limit=1)
+    if data:
+        return data[0]['timestamp']
+    return None
 
-supabase: Client = get_supabase_client()
+def fetch_new_local_data(pg_client, last_timestamp):
+    """Obtiene los datos locales más nuevos que no están en Supabase"""
+    if last_timestamp:
+        query = """
+            SELECT * FROM sensor_data WHERE timestamp > %s ORDER BY timestamp ASC
+        """
+        params = (last_timestamp,)
+    else:
+        query = "SELECT * FROM sensor_data ORDER BY timestamp ASC"
+        params = None
+    return pg_client.execute_query(query, params)
 
-SYNC_INTERVAL = 30  # segundos
-BATCH_SIZE = 100
+def sync_data():
+    logger.info("Iniciando sincronización de datos con Supabase...")
+    pg_client = PostgreSQLClient()
+    supabase_client = SupabaseClient()
 
-def get_unsynced_sensor_data():
-    # Selecciona los datos no sincronizados
-    query = "SELECT * FROM sensor_data WHERE synced IS FALSE LIMIT %s;" % BATCH_SIZE
-    return db_client.execute_query(query)
+    # 1. Obtener el último timestamp en Supabase
+    last_supabase_ts = get_latest_supabase_timestamp(supabase_client)
+    logger.info(f"Último timestamp en Supabase: {last_supabase_ts}")
 
-def mark_as_synced(ids):
-    if ids:
-        id_list = ','.join(str(i) for i in ids)
-        query = f"UPDATE sensor_data SET synced = TRUE WHERE id IN ({id_list});"
-        db_client.execute_query(query)
+    # 2. Obtener datos nuevos de la base local
+    new_data = fetch_new_local_data(pg_client, last_supabase_ts)
+    logger.info(f"Datos nuevos a sincronizar: {len(new_data) if new_data else 0}")
 
-def sync_to_supabase():
-    while True:
-        rows = get_unsynced_sensor_data()
-        if not rows:
-            print("No hay datos nuevos para sincronizar.")
-            time.sleep(SYNC_INTERVAL)
-            continue
-        # Filtrar solo los campos válidos para Supabase (sin 'synced')
-        valid_fields = ['device_id', 'sensor_type', 'value', 'unit', 'timestamp', 'raw_data']
-        filtered_rows = []
-        ids_to_mark = []
-        for row in rows:
-            clean_row = {k: v for k, v in row.items() if k not in ['id', 'synced']}
-            filtered_row = {k: v for k, v in clean_row.items() if k in valid_fields}
-            # Serializar datetime
-            if 'timestamp' in filtered_row and hasattr(filtered_row['timestamp'], 'isoformat'):
-                filtered_row['timestamp'] = filtered_row['timestamp'].isoformat()
-            # Serializar raw_data JSON
-            if 'raw_data' in filtered_row and isinstance(filtered_row['raw_data'], dict):
-                filtered_row['raw_data'] = json.dumps(filtered_row['raw_data'])
-            filtered_rows.append(filtered_row)
-            ids_to_mark.append(row['id'])
-        print("Datos enviados a Supabase:", filtered_rows)
-
-        # Usar upsert para evitar errores de duplicidad
+    # 3. Insertar en Supabase
+    success_count = 0
+    for row in new_data or []:
+        # Eliminar el campo 'id' para evitar conflictos
+        row.pop('id', None)
         try:
-            response = supabase.table('sensor_data').upsert(filtered_rows).execute()
-            print("Status:", getattr(response, 'status', None))
-            print("Response:", getattr(response, 'data', None), getattr(response, 'error', None))
-            # Si no hay error, considerar exitosa la sincronización
-            if getattr(response, 'error', None) is None:
-                print(f"Sincronizados {len(filtered_rows)} registros.")
-                mark_as_synced(ids_to_mark)
-            else:
-                print("Error al sincronizar:", response.error)
+            if supabase_client.insert_sensor_data(row):
+                success_count += 1
         except Exception as e:
-            print("Excepción al sincronizar:", e)
-        time.sleep(SYNC_INTERVAL)
+            logger.error(f"Error sincronizando fila: {e}")
 
-def test_supabase_connection():
+    logger.info(f"Sincronización completa. Filas sincronizadas: {success_count}")
+    print(f"Sincronización completa. Filas sincronizadas: {success_count}")
+    return success_count
+
+def main():
     try:
-        response = supabase.table('sensor_data').select('*').limit(1).execute()
-        if hasattr(response, 'status') and response.status == 200:
-            print("Conexión a Supabase exitosa. Ejemplo de datos:", response.data)
-        else:
-            print("Conexión a Supabase fallida. Código:", getattr(response, 'status', 'desconocido'), "Respuesta:", response)
+        sync_data()
     except Exception as e:
-        print("Error al conectar a Supabase:", e)
+        logger.error(f"Error en la sincronización: {e}")
+        print(f"Error en la sincronización: {e}")
+        sys.exit(1)
+    sys.exit(0)
 
 if __name__ == "__main__":
-    # test_supabase_connection()
-    sync_devices_to_supabase()
-    sync_to_supabase()
+    main()
