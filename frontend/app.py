@@ -332,12 +332,12 @@ class IoTDashboard:
             )
 
         with col3:
-    # Asegura que 'status' esté definido como dict vacío si no existe
-    try:
-        acquisition_status = "🟢 Activa" if status.get("running") else "🟡 Inactiva"
-    except UnboundLocalError:
-        status = {}
-        acquisition_status = "🟡 Inactiva"
+            # Asegura que 'status' esté definido como dict vacío si no existe
+            try:
+                acquisition_status = "🟢 Activa" if status.get("running") else "🟡 Inactiva"
+            except UnboundLocalError:
+                status = {}
+                acquisition_status = "🟡 Inactiva"
             st.metric(
                 "📊 Adquisición",
                 acquisition_status,
