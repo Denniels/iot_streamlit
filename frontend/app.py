@@ -41,29 +41,29 @@ st.title("IoT Dashboard - Jetson Nano & Arduino")
 st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
 # Esquema visual del flujo de datos (tarjetas separadas y flechas pequeñas, responsive)
 st.markdown(f"""
-<div style='width:100%; max-width:1100px; margin:auto; margin-bottom:32px; padding:0 10px;'>
-  <svg width='100%' height='140' viewBox='0 0 1100 140' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
-    <g font-family='sans-serif' font-size='18' font-weight='bold'>
+<div style='width:100%; max-width:1200px; margin:auto; margin-bottom:32px; padding:0 10px;'>
+  <svg width='100%' height='150' viewBox='0 0 1200 150' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
+    <g font-family='sans-serif' font-size='20' font-weight='bold'>
       <!-- Tarjeta Sensores -->
-      <rect x='30' y='40' width='210' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='135' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
-      <text x='135' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Captura</text>
+      <rect x='30' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='160' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
+      <text x='160' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
       <!-- Tarjeta Jetson/PostgreSQL -->
-      <rect x='300' y='40' width='260' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='430' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
-      <text x='430' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Almacenamiento local</text>
+      <rect x='340' y='40' width='320' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='500' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
+      <text x='500' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
       <!-- Tarjeta Supabase -->
-      <rect x='600' y='40' width='220' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='710' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
-      <text x='710' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Sincronización cloud</text>
+      <rect x='700' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='830' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
+      <text x='830' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
       <!-- Tarjeta Streamlit -->
-      <rect x='860' y='40' width='210' height='60' rx='30' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='965' y='75' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud Dashboard</text>
-      <text x='965' y='105' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='13'>Visualización y compartición</text>
+      <rect x='1010' y='40' width='160' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
+      <text x='1090' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud</text>
+      <text x='1090' y='115' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
       <!-- Flechas pequeñas -->
-      <path d='M240,70 L300,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M560,70 L600,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M820,70 L860,70' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M290,75 L340,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M660,75 L700,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
+      <path d='M960,75 L1010,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
       <defs>
         <marker id='arrowhead' markerWidth='8' markerHeight='6' refX='8' refY='3' orient='auto'>
           <polygon points='0 0, 8 3, 0 6' fill='{PRIMARY_COLOR}' />
