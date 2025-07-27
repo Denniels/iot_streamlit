@@ -49,6 +49,24 @@ def sync_data():
     for row in new_data or []:
         # Eliminar el campo 'id' para evitar conflictos
         row.pop('id', None)
+        # Convertir el campo 'value' a float si es posible
+        if 'value' in row:
+            try:
+                from decimal import Decimal
+                if isinstance(row['value'], Decimal):
+                    row['value'] = float(row['value'])
+                elif isinstance(row['value'], str):
+                    row['value'] = float(row['value'])
+            except Exception:
+                pass
+        # Convertir timestamp y created_at a string ISO si son datetime
+        for k in ['timestamp', 'created_at']:
+            if k in row:
+                try:
+                    if hasattr(row[k], 'isoformat'):
+                        row[k] = row[k].isoformat()
+                except Exception:
+                    pass
         try:
             if supabase_client.insert_sensor_data(row):
                 success_count += 1
@@ -61,12 +79,18 @@ def sync_data():
 
 def main():
     try:
-        sync_data()
+        logger.info("Servicio de sincronización Supabase iniciado.")
+        while True:
+            sync_data()
+            time.sleep(60)  # Sincroniza cada minuto
+    except KeyboardInterrupt:
+        logger.info("Sincronización detenida por el usuario.")
+        print("Sincronización detenida por el usuario.")
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Error en la sincronización: {e}")
         print(f"Error en la sincronización: {e}")
         sys.exit(1)
-    sys.exit(0)
 
 if __name__ == "__main__":
     main()

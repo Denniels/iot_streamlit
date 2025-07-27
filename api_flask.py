@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 # Configuración
 API_PORT = 8000
 NETWORK_SCAN_RANGE = '192.168.0.0/24'
-ARDUINO_USB_BAUDRATE = 9600
 
 # Variables globales
 arduino_usb = None
@@ -46,23 +45,18 @@ def get_recent_sensor_data(device_id: str = None, limit: int = 100) -> List[Dict
 
 def find_arduino_usb_port():
     """Encontrar puerto USB del Arduino automáticamente"""
-    import serial.tools.list_ports
-    logger.info("🔍 Buscando puertos Arduino USB...")
-    ports = serial.tools.list_ports.comports()
-    for port in ports:
-        # Buscar Arduino por VID/PID o descripción
-        if (getattr(port, 'vid', None) == 0x2341 or  # Arduino VID
-            'arduino' in port.description.lower() or
-            'uno' in port.description.lower() or
-            'acm' in port.device.lower()):
-            try:
-                test_serial = serial.Serial(port.device, ARDUINO_USB_BAUDRATE, timeout=2)
-                test_serial.close()
-                logger.info(f"🔍 Puerto USB encontrado: {port.device} - {port.description}")
-                return port.device
-            except Exception as e:
-                logger.warning(f"⚠️ Error probando puerto {port.device}: {e}")
-                continue
+    import glob
+    possible_ports = glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyS*')
+    
+    for port in possible_ports:
+        try:
+            test_serial = serial.Serial(port, ARDUINO_USB_BAUDRATE, timeout=2)
+            test_serial.close()
+            logger.info(f"🔍 Puerto USB encontrado: {port}")
+            return port
+        except Exception:
+            continue
+    
     logger.warning("⚠️ No se encontró puerto USB para Arduino")
     return None
 
@@ -448,8 +442,6 @@ def api_devices():
     
     else:  # GET
         devices = db_client.get_devices()
-        # Filtrar dispositivos de prueba
-        devices = [d for d in devices if not (d.get('device_id') == 'test_device_001' or d.get('device_type') == 'test_type')]
         return jsonify(devices)
 
 @app.route('/api/sensor-data', methods=['GET', 'POST'])

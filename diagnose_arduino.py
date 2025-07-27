@@ -9,7 +9,6 @@ import serial.tools.list_ports
 import time
 import json
 import sys
-import subprocess
 from datetime import datetime
 
 def detect_arduino_ports():
@@ -113,8 +112,6 @@ def test_serial_connection(port_device, baudrate=9600):
                                 print(f"    🌡️  Temp2: {sensors.get('temperature_2', 'N/A')}°C")
                                 print(f"    🌡️  Temp3: {sensors.get('temperature_3', 'N/A')}°C")
                                 print(f"    💡 Luz: {sensors.get('light_level', 'N/A')}%")
-                        except:
-                            pass
                 except Exception as e:
                     print(f"❌ Error procesando datos: {e}")
             
@@ -147,6 +144,7 @@ def check_system_resources():
             print(f"   Load average: {load}")
             
         # Verificar procesos que usan puertos seriales
+        import subprocess
         try:
             result = subprocess.run(['lsof', '/dev/ttyACM*'], 
                                   capture_output=True, text=True)

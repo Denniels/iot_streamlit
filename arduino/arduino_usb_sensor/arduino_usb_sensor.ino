@@ -1,4 +1,4 @@
-/*
+depura el tiempo de espera, dale un poco mas de tiempo/*
 Arduino USB - 3 sondas NTC + LDR vía puerto serial
 Hardware: Arduino Uno/Nano + 3x NTC 10kΩ + 1x LDR
 Conexiones:

@@ -58,34 +58,39 @@ class ArduinoDetector:
     def _test_arduino_communication(self, port_device: str) -> bool:
         """Probar comunicación con Arduino en un puerto específico"""
         try:
-            # Intentar conexión
             test_serial = serial.Serial(port_device, Config.USB_BAUDRATE, timeout=2)
             time.sleep(2)  # Esperar reset del Arduino
-            
-            # Limpiar buffer
+
             test_serial.flushInput()
             test_serial.flushOutput()
-            
-            # Enviar comando STATUS (que sabemos que funciona)
+
             test_serial.write(b'STATUS\n')
-            time.sleep(1)
-            
-            # Leer respuesta
-            if test_serial.in_waiting > 0:
-                response = test_serial.readline().decode('utf-8').strip()
-                test_serial.close()
-                
-                # Verificar si es una respuesta JSON válida del Arduino
+            time.sleep(2)  # Espera extendida
+
+            # Intentar leer varias veces si no hay datos
+            response = None
+            for _ in range(3):
+                if test_serial.in_waiting > 0:
+                    response = test_serial.readline().decode('utf-8').strip()
+                    break
+                time.sleep(1)
+
+            test_serial.close()
+
+            if response:
+                logger.debug(f"Respuesta cruda Arduino: {response}")
                 try:
                     data = json.loads(response)
-                    if data.get('device_id') and 'arduino' in str(data.get('device_id')):
+                    # Aceptar si tiene status ok o device_id
+                    if (data.get('status') == 'ok' or
+                        (data.get('device_id') and 'arduino' in str(data.get('device_id')))):
                         return True
                 except json.JSONDecodeError:
-                    pass
-            
-            test_serial.close()
+                    logger.warning(f"Respuesta no JSON: {response}")
+                    # Aceptar si contiene 'ok' o 'arduino' en texto
+                    if 'ok' in response.lower() or 'arduino' in response.lower():
+                        return True
             return False
-            
         except Exception as e:
             logger.debug(f"Puerto {port_device} no disponible: {e}")
             return False
@@ -114,15 +119,24 @@ class ArduinoDetector:
             
             # Enviar comando de estado para verificar
             self.usb_connection.write(b'STATUS\n')
-            time.sleep(1)
-            
-            if self.usb_connection.in_waiting > 0:
-                response = self.usb_connection.readline().decode().strip()
-                
+            time.sleep(5)  # Espera extendida
+
+            # Intentar leer varias veces si no hay datos
+            response = None
+            for _ in range(3):
+                if self.usb_connection.in_waiting > 0:
+                    response = self.usb_connection.readline().decode().strip()
+                    break
+                time.sleep(1)
+
+            if response:
+                logger.debug(f"Respuesta cruda Arduino: {response}")
                 try:
                     data = json.loads(response)
-                    if data.get('status') == 'ok':
-                        # Registrar dispositivo
+                    # Aceptar si status es ok, o si message_type es command_response y status ok
+                    if (data.get('status') == 'ok' or
+                        (data.get('message_type') == 'command_response' and data.get('status') == 'ok') or
+                        (data.get('device_id') and 'arduino' in str(data.get('device_id')))):
                         device_data = {
                             'device_id': data.get('device_id', 'arduino_usb'),
                             'device_type': 'arduino_usb',
@@ -135,15 +149,27 @@ class ArduinoDetector:
                                 'uptime': data.get('uptime')
                             }
                         }
-                        
                         self.db_client.register_device(device_data)
                         self.db_client.log_system_event('device_connected', device_data['device_id'], f'Arduino USB conectado en {detected_port}')
-                        
                         logger.info(f"✅ Arduino USB detectado y registrado en {detected_port}")
                         return True
                 except json.JSONDecodeError:
-                    logger.error("❌ Respuesta no válida del Arduino")
-            
+                    logger.warning(f"Respuesta no JSON: {response}")
+                    if 'ok' in response.lower() or 'arduino' in response.lower():
+                        device_data = {
+                            'device_id': 'arduino_usb',
+                            'device_type': 'arduino_usb',
+                            'name': 'Arduino USB',
+                            'port': detected_port,
+                            'status': 'online',
+                            'metadata': {
+                                'baudrate': Config.USB_BAUDRATE
+                            }
+                        }
+                        self.db_client.register_device(device_data)
+                        self.db_client.log_system_event('device_connected', device_data['device_id'], f'Arduino USB conectado en {detected_port}')
+                        logger.info(f"✅ Arduino USB detectado y registrado en {detected_port}")
+                        return True
             return False
             
         except Exception as e:
@@ -154,39 +180,33 @@ class ArduinoDetector:
     
     def read_usb_data(self) -> Optional[Dict[str, Any]]:
         """Leer datos del Arduino USB con manejo robusto de errores"""
-        # Verificar conexión y reconectar si es necesario
-        reconnection_attempts = 0
-        while not self.usb_connection or not self.usb_connection.is_open:
+        # Verificar conexión
+        if not self.usb_connection or not self.usb_connection.is_open:
             logger.warning("🔄 Conexión USB perdida, intentando reconectar...")
             if self.detect_usb_arduino():
-                logger.info("✅ Reconexión exitosa a %s", self.auto_detected_port)
-                break
+                logger.info("✅ Reconexión exitosa")
             else:
-                reconnection_attempts += 1
-                logger.error(f"❌ No se pudo reconectar (intento {reconnection_attempts})")
-                time.sleep(2)
-                if reconnection_attempts > 10:
-                    logger.critical("❌ No se pudo reconectar después de 10 intentos. Abortando lectura USB.")
-                    return None
-
+                logger.error("❌ No se pudo reconectar")
+                return None
+        
         try:
             # Verificar si hay datos disponibles
             if self.usb_connection.in_waiting > 0:
                 raw_data = self.usb_connection.readline().decode('utf-8').strip()
-
+                
                 if not raw_data:
                     return None
-
+                
                 # Parsear JSON del Arduino
                 try:
                     data = json.loads(raw_data)
-
+                    
                     # Verificar que sea datos de sensores
                     if data.get('message_type') == 'sensor_data' and 'sensors' in data:
                         # Procesar datos de sensores
                         sensors = data['sensors']
                         device_id = data.get('device_id', 'arduino_usb')
-
+                        
                         # Insertar cada sensor por separado
                         for sensor_name, value in sensors.items():
                             if sensor_name != 'temperature_avg':  # Evitar duplicar el promedio
@@ -198,30 +218,31 @@ class ArduinoDetector:
                                     'raw_data': data,
                                     'timestamp': datetime.now().isoformat()
                                 }
+                                
                                 self.db_client.insert_sensor_data(sensor_data)
-
+                        
                         logger.debug(f"📊 Datos recibidos: Temp1={sensors.get('temperature_1')}°C, Luz={sensors.get('light_level')}%")
                         return data
-
+                    
                     elif data.get('message_type') == 'command_response':
                         # Log de respuestas a comandos
                         logger.debug(f"📝 Respuesta comando: {data.get('command')} -> {data.get('status')}")
                         return data
-
+                    
                 except json.JSONDecodeError as e:
                     logger.warning(f"⚠️ Datos no JSON recibidos: {raw_data[:100]}...")
                     return None
-
+            
             return None
-
+            
         except serial.SerialException as e:
             logger.error(f"❌ Error de conexión serial: {e}")
-            # Intentar reconectar en el siguiente ciclo
+            # Intentar reconectar
             if self.usb_connection:
                 self.usb_connection.close()
             self.usb_connection = None
             return None
-
+            
         except Exception as e:
             logger.error(f"❌ Error inesperado leyendo datos USB: {e}")
             return None

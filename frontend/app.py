@@ -1,380 +1,229 @@
+"""
+Dashboard principal de Streamlit para el sistema IoT
+"""
 import streamlit as st
-import pandas as pd
 import requests
+import pandas as pd
 import plotly.express as px
-import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import json
+from datetime import datetime, timedelta
 import time
 
-# Colores globales para el dashboard
-PRIMARY_COLOR = "#1a2639"  # Azul oscuro
-ACCENT_COLOR = "#e6b800"   # Dorado
-BG_COLOR = "#f5f6fa"       # Fondo claro
-SUCCESS_COLOR = "#2ecc71"  # Verde confianza
-ERROR_COLOR = "#e74c3c"    # Rojo
+# Configuración de página
+st.set_page_config(
+    page_title="IoT Dashboard",
+    page_icon="🌐",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Inicializar last_update en session_state si no existe
-from datetime import datetime
-if "last_update" not in st.session_state:
-    st.session_state.last_update = datetime.now()
-
-# Banner informativo y diagrama de flujo
-st.title("IoT Streamlit Dashboard - Jetson Nano & Arduino")
-st.markdown(f"<h4 style='color:{ACCENT_COLOR};'>Monitoreo avanzado de dispositivos y sensores</h4>", unsafe_allow_html=True)
-st.markdown(f"""
-<div style='width:100%; max-width:1200px; margin:auto; margin-bottom:32px; padding:0 10px;'>
-  <svg width='100%' height='150' viewBox='0 0 1200 150' fill='none' xmlns='http://www.w3.org/2000/svg' style='max-width:100%;'>
-    <g font-family='sans-serif' font-size='20' font-weight='bold'>
-      <!-- Tarjeta Sensores -->
-      <rect x='30' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='160' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Sensores</text>
-      <text x='160' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Captura</text>
-      <!-- Tarjeta Jetson/PostgreSQL -->
-      <rect x='340' y='40' width='320' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='500' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Jetson Nano / PostgreSQL</text>
-      <text x='500' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Almacenamiento local</text>
-      <!-- Tarjeta Supabase -->
-      <rect x='700' y='40' width='260' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='830' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Supabase Cloud</text>
-      <text x='830' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Sincronización cloud</text>
-      <!-- Tarjeta Streamlit -->
-      <rect x='1010' y='40' width='160' height='70' rx='35' fill='{ACCENT_COLOR}' opacity='0.18'/>
-      <text x='1090' y='80' text-anchor='middle' fill='{PRIMARY_COLOR}'>Streamlit Cloud</text>
-      <text x='1090' y='135' text-anchor='middle' fill='{PRIMARY_COLOR}' font-size='15' font-weight='normal'>Visualización y compartición</text>
-      <!-- Flechas pequeñas -->
-      <path d='M290,75 L340,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M660,75 L700,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <path d='M960,75 L1010,75' stroke='{PRIMARY_COLOR}' stroke-width='2.5' marker-end='url(#arrowhead)'/>
-      <defs>
-        <marker id='arrowhead' markerWidth='8' markerHeight='6' refX='8' refY='3' orient='auto'>
-          <polygon points='0 0, 8 3, 0 6' fill='{PRIMARY_COLOR}' />
-        </marker>
-      </defs>
-    </g>
-  </svg>
-</div>
-""", unsafe_allow_html=True)
+# CSS personalizado
 st.markdown("""
-<div style='max-width:900px; margin:auto; margin-bottom:16px; color:#444; font-size:16px;'>
-<b>Flujo de datos:</b> Los sensores capturan información y la envían a la Jetson Nano, donde se almacena localmente en PostgreSQL. Los datos se sincronizan automáticamente con Supabase Cloud y son consultados en tiempo real por el dashboard en Streamlit Cloud.
-</div>
+<style>
+.metric-container {
+    background-color: #f0f2f6;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid #1f77b4;
+}
+
+.status-online { color: #28a745; }
+.status-offline { color: #dc3545; }
+.status-error { color: #ffc107; }
+
+.device-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #ddd;
+    margin: 0.5rem 0;
+}
+
+.sidebar-content {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# Configuración Supabase
-SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
-SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"] if "SUPABASE_ANON_KEY" in st.secrets else os.getenv("SUPABASE_ANON_KEY")
-
-# Consulta a Supabase REST API
-@st.cache_data(ttl=5)
-def get_sensor_data():
-    url = f"{SUPABASE_URL}/rest/v1/sensor_data?select=*"
-    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    try:
-        r = requests.get(url, headers=headers)
-        if r.status_code == 200:
-            return pd.DataFrame(r.json())
-        else:
-            st.error("Error consultando Supabase: " + r.text)
-            return pd.DataFrame()
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Error de API: {e}")
-        return pd.DataFrame()
-
-@st.cache_data(ttl=60)
-def get_devices():
-    url = f"{SUPABASE_URL}/rest/v1/devices?select=*"
-    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    try:
-        r = requests.get(url, headers=headers)
-        if r.status_code == 200:
-            return pd.DataFrame(r.json())
-        else:
-            st.error("Error consultando Supabase: " + r.text)
-            return pd.DataFrame()
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Error de API: {e}")
-        return pd.DataFrame()
-
-# Carga de datos
-sensor_df = get_sensor_data()
-devices_df = get_devices()
-
-# Sidebar: Filtros
-st.sidebar.header("Filtros avanzados")
-# Detectar dispositivos activos desde los datos de sensores si la tabla de dispositivos está vacía
-if not devices_df.empty:
-    devices = devices_df["device_id"].unique()
-else:
-    # Si la tabla de dispositivos está vacía, usar los device_id presentes en los datos de sensores
-    devices = sensor_df["device_id"].unique() if not sensor_df.empty else []
-if len(devices) == 0:
-    st.sidebar.warning("No hay dispositivos detectados. Verifica la conexión o espera la próxima actualización.")
-selected_device = st.sidebar.selectbox("Selecciona dispositivo", devices)
-
-# Últimos 5 registros por dispositivo
-st.subheader("🔎 Últimos 5 registros por dispositivo")
-st.markdown("<small>Esta tabla muestra los datos más recientes recibidos de cada dispositivo conectado. Útil para monitoreo rápido y diagnóstico inmediato. Si no ves dispositivos, revisa la conexión y el pipeline.</small>", unsafe_allow_html=True)
-if not sensor_df.empty and len(devices) > 0:
-    for device in devices:
-        st.markdown(f"<h5 style='color:{ACCENT_COLOR};'>Dispositivo: <b>{device}</b></h5>", unsafe_allow_html=True)
-        df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp", ascending=False).head(5)
-        if not df_device.empty:
-            st.dataframe(df_device, use_container_width=True)
-        else:
-            st.info(f"No hay registros recientes para {device}.")
-else:
-    st.info("No hay datos de sensores disponibles o no hay dispositivos detectados.")
-
-# Gráficas avanzadas por dispositivo
-st.subheader("📈 Gráficas avanzadas por dispositivo")
-st.markdown("<small>Visualiza la evolución temporal de cada sensor en cada dispositivo y la proporción de registros por tipo de sensor. Permite identificar tendencias, anomalías y comparar el comportamiento de los sensores. Si no ves gráficas, revisa que los dispositivos estén enviando datos.</small>", unsafe_allow_html=True)
-if not sensor_df.empty and len(devices) > 0:
-    for i, device in enumerate(devices):
-        df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
-        if not df_device.empty:
-            if device == "arduino_usb_001":
-                # Gráfico de líneas solo para sensores de temperatura
-                temp_df = df_device[df_device["sensor_type"].str.contains("temperature")]
-                if not temp_df.empty:
-                    st.markdown(f"<h5 style='color:{ACCENT_COLOR};'>📊 {device}: Temperaturas</h5>", unsafe_allow_html=True)
-                    fig_temp = px.line(
-                        temp_df,
-                        x="timestamp",
-                        y="value",
-                        color="sensor_type",
-                        title=f"{device} - Sensores de Temperatura",
-                        labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
-                        template="plotly_white",
-                        line_shape="spline"
-                    )
-                    fig_temp.update_layout(
-                        plot_bgcolor=BG_COLOR,
-                        paper_bgcolor=BG_COLOR,
-                        font_color=PRIMARY_COLOR,
-                        legend_title_text="Sensor",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        title_font=dict(size=20, color=ACCENT_COLOR)
-                    )
-                    fig_temp.update_traces(line=dict(width=4), marker=dict(size=10))
-                    st.plotly_chart(fig_temp, use_container_width=True, key=f"plot_temp_{device}_{i}")
-                # Histograma para LDR
-                ldr_df = df_device[df_device["sensor_type"] == "light_level"]
-                if not ldr_df.empty:
-                    st.markdown(f"<h5 style='color:{ACCENT_COLOR};'>💡 {device}: Nivel de Luz (LDR)</h5>", unsafe_allow_html=True)
-                    fig_ldr = px.histogram(
-                        ldr_df,
-                        x="timestamp",
-                        y="value",
-                        nbins=30,
-                        title=f"{device} - Histograma Nivel de Luz (LDR)",
-                        labels={"timestamp": "Fecha y hora", "value": "Nivel de luz"},
-                        template="plotly_white"
-                    )
-                    fig_ldr.update_layout(
-                        plot_bgcolor=BG_COLOR,
-                        paper_bgcolor=BG_COLOR,
-                        font_color=PRIMARY_COLOR,
-                        title_font=dict(size=18, color=ACCENT_COLOR)
-                    )
-                    st.plotly_chart(fig_ldr, use_container_width=True, key=f"hist_ldr_{device}_{i}")
-            else:
-                # Para otros dispositivos, mostrar como antes
-                col1, col2 = st.columns([2,1])
-                with col1:
-                    fig = px.line(
-                        df_device,
-                        x="timestamp",
-                        y="value",
-                        color="sensor_type",
-                        title=f"📊 {device}: Evolución temporal de sensores",
-                        labels={"timestamp": "Fecha y hora", "value": "Valor", "sensor_type": "Tipo de sensor"},
-                        template="plotly_white",
-                        line_shape="spline"
-                    )
-                    fig.update_layout(
-                        plot_bgcolor=BG_COLOR,
-                        paper_bgcolor=BG_COLOR,
-                        font_color=PRIMARY_COLOR,
-                        legend_title_text="Sensor",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        title_font=dict(size=20, color=ACCENT_COLOR)
-                    )
-                    fig.update_traces(line=dict(width=4), marker=dict(size=10))
-                    st.plotly_chart(fig, use_container_width=True, key=f"plot_{device}_{i}")
-                with col2:
-                    pie_df = df_device["sensor_type"].value_counts().reset_index()
-                    pie_df.columns = ["Tipo de sensor", "Registros"]
-                    fig_pie = px.pie(
-                        pie_df,
-                        names="Tipo de sensor",
-                        values="Registros",
-                        title=f"Proporción por tipo de sensor en {device}",
-                        color_discrete_sequence=px.colors.sequential.YlOrBr
-                    )
-                    fig_pie.update_traces(textinfo='percent+label')
-                    fig_pie.update_layout(title_font=dict(size=16, color=ACCENT_COLOR))
-                    st.plotly_chart(fig_pie, use_container_width=True, key=f"pie_{device}_{i}")
-        else:
-            st.warning(f"No hay datos para graficar en {device}.")
-else:
-    st.info("No hay datos para graficar o no hay dispositivos detectados.")
-
-# Dashboard general avanzado
-st.subheader("🌐 Dashboard general avanzado")
-st.markdown("<small>Visualización profesional del historial completo de sensores y dispositivos. Incluye distribución de valores, proporción de registros por dispositivo y evolución temporal. Si no ves datos, revisa la conexión y el pipeline.</small>", unsafe_allow_html=True)
-if not sensor_df.empty and len(devices) > 0:
-    col1, col2 = st.columns([2,1])
-    with col1:
-        # Colores suaves y símbolos simples
-        color_map = {
-            "arduino_usb_001": "#6fa8dc",
-            "arduino_ethernet_192_168_0_110": "#f6b26b"
-        }
-        symbol_map = {
-            "temperature_1": "circle",
-            "temperature_2": "diamond",
-            "temperature_3": "x",
-            "temperature_avg": "square",
-            "light_level": "triangle-up"
-        }
-        fig = px.scatter(
-            sensor_df,
-            x="timestamp",
-            y="value",
-            color="device_id",
-            symbol="sensor_type",
-            title="🌐 Historial completo de sensores y dispositivos",
-            hover_data=["sensor_type", "value", "unit", "device_id"],
-            labels={"timestamp": "Fecha y hora", "value": "Valor", "device_id": "Dispositivo", "sensor_type": "Tipo de sensor"},
-            template="plotly_white",
-            color_discrete_map=color_map,
-            symbol_map=symbol_map
-        )
-        fig.update_layout(
-            plot_bgcolor=BG_COLOR,
-            paper_bgcolor=BG_COLOR,
-            font_color=PRIMARY_COLOR,
-            legend_title_text="Dispositivo",
-            legend=dict(orientation="h", yanchor="top", y=1.15, xanchor="center", x=0.5, font=dict(size=14)),
-            title_font=dict(size=22, color=ACCENT_COLOR),
-            margin=dict(t=80, b=40, l=20, r=20)
-        )
-        fig.update_traces(marker=dict(size=10, line=dict(width=2, color=PRIMARY_COLOR)), opacity=0.85)
-        st.plotly_chart(fig, use_container_width=True, key="general_scatter_dashboard")
-        st.markdown(f"<h6 style='color:{SUCCESS_COLOR}; text-align:right;'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
-    with col2:
-        # Gráfico de torta: proporción de registros por dispositivo
-        pie_df = sensor_df["device_id"].value_counts().reset_index()
-        pie_df.columns = ["Dispositivo", "Registros"]
-        fig_pie = px.pie(
-            pie_df,
-            names="Dispositivo",
-            values="Registros",
-            title="Proporción de registros por dispositivo",
-            color_discrete_sequence=px.colors.sequential.YlOrBr
-        )
-        fig_pie.update_traces(textinfo='percent+label')
-        fig_pie.update_layout(title_font=dict(size=16, color=ACCENT_COLOR))
-        st.plotly_chart(fig_pie, use_container_width=True, key="pie_dashboard")
-    # Histograma de valores
-    st.markdown("#### Distribución de valores de sensores")
-    hist_fig = px.histogram(
-        sensor_df,
-        x="value",
-        color="sensor_type",
-        nbins=30,
-        title="Histograma de valores por tipo de sensor",
-        labels={"value": "Valor", "sensor_type": "Tipo de sensor"},
-        template="plotly_white"
-    )
-    hist_fig.update_layout(
-        plot_bgcolor=BG_COLOR,
-        paper_bgcolor=BG_COLOR,
-        font_color=PRIMARY_COLOR,
-        legend_title_text="Sensor",
-        title_font=dict(size=18, color=ACCENT_COLOR)
-    )
-    st.plotly_chart(hist_fig, use_container_width=True, key="hist_dashboard")
-else:
-    st.info("No hay datos históricos disponibles o no hay dispositivos detectados.")
-
-
-st.markdown("<small>Actualización automática cada minuto. Powered by Streamlit Cloud & Supabase.</small>", unsafe_allow_html=True)
+# Configuración de la API
+API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000")
 
 class IoTDashboard:
-    def get_device_data(self, device_id: str, limit: int = 50):
-        # Consulta los datos históricos de un dispositivo desde Supabase.
-        try:
-            url = f"{SUPABASE_URL}/rest/v1/sensor_data?device_id=eq.{device_id}&order=timestamp.desc&limit={limit}"
-            headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-            r = requests.get(url, headers=headers)
-            if r.status_code == 200:
-                data = r.json()
-                return {"success": True, "data": data}
-            else:
-                return {"success": False, "data": [], "error": r.text}
-        except Exception as e:
-            return {"success": False, "data": [], "error": str(e)}
+    """Clase principal del dashboard"""
+    
     def __init__(self):
-        pass
-
-    def render_sidebar(self):
-        if "auto_refresh" not in st.session_state:
+        self.api_url = API_BASE_URL
+        
+        # Estado de la aplicación
+        if 'last_update' not in st.session_state:
+            st.session_state.last_update = datetime.now()
+        if 'auto_refresh' not in st.session_state:
             st.session_state.auto_refresh = False
-        # Renderizar barra lateral con controles
-        st.sidebar.title("🌐 IoT Control Panel")
-        st.sidebar.markdown("### 🔗 Estado de Conexión")
-        st.sidebar.success("✅ Conectado a Supabase")
-        # Mostrar el número de dispositivos detectados desde los datos de sensores si la tabla está vacía
+        if 'selected_device' not in st.session_state:
+            st.session_state.selected_device = None
+    
+    def make_api_request(self, endpoint: str):
+        """Realizar petición a la API con manejo de errores"""
         try:
-            if not devices_df.empty:
-                devices_count = len(devices_df)
-            else:
-                devices_count = len(sensor_df["device_id"].unique()) if not sensor_df.empty else 0
-            st.sidebar.metric("Dispositivos", devices_count)
-        except Exception:
-            st.sidebar.metric("Dispositivos", 0)
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### ⚙️ Controles de Sistema")
-        if st.button("🔄 Actualizar"):
-            st.rerun()
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### ⚡ Visualización en Tiempo Real")
-        prev_real_time = st.session_state.get("real_time", False)
-        st.session_state.real_time = st.sidebar.toggle("Activar modo tiempo real", value=prev_real_time)
-        # Control de adquisición Jetson Nano mediante archivo local
-        control_flag_path = "/home/daniel/repos/iot_streamlit/acquisition_control.flag"
+            response = requests.get(f"{self.api_url}{endpoint}", timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.ConnectionError:
+            st.error("❌ No se puede conectar con el backend. Verifica que esté ejecutándose.")
+            return None
+        except requests.exceptions.Timeout:
+            st.error("⏱️ Timeout conectando con el backend")
+            return None
+        except requests.exceptions.RequestException as e:
+            st.error(f"❌ Error de API: {e}")
+            return None
+    
+    def get_system_status(self):
+        """Obtener estado del sistema"""
+        return self.make_api_request("/status")
+    
+    def get_devices(self):
+        """Obtener lista de dispositivos"""
+        return self.make_api_request("/devices")
+    
+    def get_latest_data(self):
+        """Obtener datos más recientes"""
+        return self.make_api_request("/data")
+    
+    def get_device_data(self, device_id: str, limit: int = 100):
+        """Obtener datos de un dispositivo específico"""
+        return self.make_api_request(f"/data/{device_id}?limit={limit}")
+    
+    def trigger_scan(self):
+        """Disparar escaneo de red"""
         try:
-            if st.session_state.real_time != prev_real_time:
-                # Escribir el flag directamente (el directorio ya existe)
-                with open(control_flag_path, "w") as f:
-                    f.write("ON" if st.session_state.real_time else "OFF")
+            response = requests.post(f"{self.api_url}/scan/network", timeout=30)
+            response.raise_for_status()
+            return True
         except Exception as e:
-            st.sidebar.error(f"Error control Jetson Nano: {e}")
-        if st.session_state.real_time:
-            st.sidebar.info("La Jetson Nano está adquiriendo y enviando datos en tiempo real.")
-            st.session_state.refresh_rate = st.sidebar.slider("Intervalo de actualización (segundos)", 2, 60, st.session_state.get("refresh_rate", 10))
-            st.sidebar.success(f"Actualizando cada {st.session_state.refresh_rate}s")
+            st.error(f"Error iniciando escaneo: {e}")
+            return False
+    
+    def start_acquisition(self, interval: int = 10):
+        """Iniciar adquisición continua"""
+        try:
+            response = requests.post(f"{self.api_url}/acquisition/start?interval={interval}")
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            st.error(f"Error iniciando adquisición: {e}")
+            return False
+    
+    def stop_acquisition(self):
+        """Detener adquisición continua"""
+        try:
+            response = requests.post(f"{self.api_url}/acquisition/stop")
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            st.error(f"Error deteniendo adquisición: {e}")
+            return False
+    
+    def render_sidebar(self):
+        """Renderizar barra lateral con controles"""
+        st.sidebar.title("🌐 IoT Control Panel")
+        
+        # Estado de conexión
+        st.sidebar.markdown("### 🔗 Estado de Conexión")
+        
+        # Verificar conexión con API
+        try:
+            health = self.make_api_request("/health")
+            if health and health.get("status") == "healthy":
+                st.sidebar.success("✅ Backend conectado")
+                st.sidebar.metric("Dispositivos", health.get("devices_count", 0))
+            else:
+                st.sidebar.error("❌ Backend desconectado")
+        except:
+            st.sidebar.error("❌ Sin conexión")
+        
+        st.sidebar.markdown("---")
+        
+        # Controles de sistema
+        st.sidebar.markdown("### ⚙️ Controles de Sistema")
+        
+        col1, col2 = st.sidebar.columns(2)
+        
+        with col1:
+            if st.button("🔍 Escanear Red"):
+                with st.spinner("Escaneando..."):
+                    if self.trigger_scan():
+                        st.success("Escaneo iniciado")
+                    time.sleep(2)
+                    st.rerun()
+        
+        with col2:
+            if st.button("🔄 Actualizar"):
+                st.session_state.last_update = datetime.now()
+                st.rerun()
+        
+        # Control de adquisición
+        st.sidebar.markdown("### 📊 Adquisición de Datos")
+        
+        status = self.get_system_status()
+        if status:
+            is_running = status.get("running", False)
+            
+            if is_running:
+                st.sidebar.success("🟢 Adquisición activa")
+                if st.sidebar.button("⏹️ Detener"):
+                    if self.stop_acquisition():
+                        st.success("Adquisición detenida")
+                        time.sleep(1)
+                        st.rerun()
+            else:
+                st.sidebar.warning("🟡 Adquisición inactiva")
+                interval = st.sidebar.slider("Intervalo (seg)", 5, 60, 10)
+                if st.sidebar.button("▶️ Iniciar"):
+                    if self.start_acquisition(interval):
+                        st.success("Adquisición iniciada")
+                        time.sleep(1)
+                        st.rerun()
+        
+        st.sidebar.markdown("---")
+        
+        # Auto-refresh
+        st.sidebar.markdown("### 🔄 Auto-actualización")
+        st.session_state.auto_refresh = st.sidebar.checkbox("Activar auto-refresh", st.session_state.auto_refresh)
+        
+        if st.session_state.auto_refresh:
+            refresh_rate = st.sidebar.slider("Segundos", 5, 60, 10)
+            st.sidebar.info(f"Próxima actualización en {refresh_rate}s")
+            
+            # Placeholder para countdown
             placeholder = st.sidebar.empty()
-            for i in range(st.session_state.refresh_rate, 0, -1):
+            for i in range(refresh_rate, 0, -1):
                 placeholder.text(f"Actualizando en {i}s...")
                 time.sleep(1)
             placeholder.text("Actualizando...")
             st.rerun()
-        else:
-            st.sidebar.warning("Modo tiempo real desactivado. La Jetson Nano puede pausar la adquisición y ahorrar recursos.")
-
+    
     def render_overview(self):
-        # Renderizar vista general del sistema
+        """Renderizar vista general del sistema"""
         st.title("🌐 IoT Dashboard - Vista General")
-        # Usar devices_df y sensor_df directamente
-        if devices_df.empty:
-            st.error("No se pueden cargar los datos de dispositivos")
+        
+        # Obtener datos del sistema
+        status = self.get_system_status()
+        devices_response = self.get_devices()
+        
+        if not status or not devices_response:
+            st.error("No se pueden cargar los datos del sistema")
             return
-        devices = devices_df.to_dict(orient="records")
-
+        
+        devices = devices_response.get("data", [])
+        
         # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
-
+        
         with col1:
             total_devices = len(devices)
             st.metric(
@@ -382,7 +231,7 @@ class IoTDashboard:
                 total_devices,
                 delta=None
             )
-
+        
         with col2:
             online_count = len([d for d in devices if d.get('status') == 'online'])
             st.metric(
@@ -390,20 +239,15 @@ class IoTDashboard:
                 online_count,
                 delta=f"{online_count}/{total_devices}"
             )
-
+        
         with col3:
-            # Asegura que 'status' esté definido como dict vacío si no existe
-            try:
-                acquisition_status = "🟢 Activa" if status.get("running") else "🟡 Inactiva"
-            except UnboundLocalError:
-                status = {}
-                acquisition_status = "🟡 Inactiva"
+            acquisition_status = "🟢 Activa" if status.get("running") else "🟡 Inactiva"
             st.metric(
                 "📊 Adquisición",
                 acquisition_status,
                 delta=None
             )
-
+        
         with col4:
             last_data = status.get("last_data")
             if last_data:
@@ -416,24 +260,24 @@ class IoTDashboard:
                 )
             else:
                 st.metric("🕐 Última Actualización", "Sin datos", delta=None)
-
+        
         # Gráfico de estado de dispositivos
         if devices:
             st.markdown("### 📊 Estado de Dispositivos")
-
+            
             # Preparar datos para gráfico
             status_counts = {}
             device_types = {}
-
+            
             for device in devices:
                 status = device.get('status', 'unknown')
                 device_type = device.get('device_type', 'unknown')
-
+                
                 status_counts[status] = status_counts.get(status, 0) + 1
                 device_types[device_type] = device_types.get(device_type, 0) + 1
-
+            
             col1, col2 = st.columns(2)
-
+            
             with col1:
                 # Gráfico de estado
                 status_df = pd.DataFrame(list(status_counts.items()), columns=['Estado', 'Cantidad'])
@@ -449,7 +293,7 @@ class IoTDashboard:
                     }
                 )
                 st.plotly_chart(fig_status, use_container_width=True)
-
+            
             with col2:
                 # Gráfico de tipos
                 types_df = pd.DataFrame(list(device_types.items()), columns=['Tipo', 'Cantidad'])
@@ -462,17 +306,17 @@ class IoTDashboard:
                     color_continuous_scale='viridis'
                 )
                 st.plotly_chart(fig_types, use_container_width=True)
-
+        
         # Tabla de dispositivos
         st.markdown("### 📱 Lista de Dispositivos")
-
+        
         if devices:
             df = pd.DataFrame(devices)
-
+            
             # Formatear tabla
             df_display = df[['device_id', 'device_type', 'ip_address', 'status', 'last_seen']].copy()
             df_display.columns = ['ID Dispositivo', 'Tipo', 'IP', 'Estado', 'Última Conexión']
-
+            
             # Colorear estados
             def color_status(val):
                 if val == 'online':
@@ -482,51 +326,51 @@ class IoTDashboard:
                 elif val == 'error':
                     return 'background-color: #fff3cd; color: #856404'
                 return ''
-
+            
             styled_df = df_display.style.applymap(color_status, subset=['Estado'])
             st.dataframe(styled_df, use_container_width=True)
-
+            
             # Seleccionar dispositivo para detalles
             st.markdown("### 🔍 Detalles de Dispositivo")
             device_ids = [d['device_id'] for d in devices]
             selected = st.selectbox("Seleccionar dispositivo:", device_ids)
-
+            
             if selected:
                 self.render_device_details(selected)
         else:
             st.info("No hay dispositivos detectados. Usa el botón 'Escanear Red' para buscar dispositivos.")
-
+    
     def render_device_details(self, device_id: str):
-        # Renderizar detalles de un dispositivo específico
+        """Renderizar detalles de un dispositivo específico"""
         device_data = self.get_device_data(device_id, 50)
-
+        
         if not device_data or not device_data.get("success"):
             st.error(f"No se pueden cargar datos del dispositivo {device_id}")
             return
-
+        
         data_points = device_data.get("data", [])
-
+        
         if not data_points:
             st.info(f"No hay datos históricos para {device_id}")
             return
-
+        
         # Convertir a DataFrame
         df = pd.DataFrame(data_points)
-
+        
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values('timestamp')
-
+            
             # Gráfico temporal
             if 'sensor_data' in df.columns:
                 st.markdown(f"#### 📈 Datos de {device_id}")
-
+                
                 # Intentar parsear datos del sensor
                 try:
                     # Expandir JSON de sensor_data
                     sensor_df = pd.json_normalize(df['sensor_data'].apply(json.loads))
                     sensor_df['timestamp'] = df['timestamp'].values
-
+                    
                     # Crear gráfico con múltiples series
                     fig = make_subplots(
                         rows=len(sensor_df.columns) - 1,
@@ -534,7 +378,7 @@ class IoTDashboard:
                         shared_xaxes=True,
                         subplot_titles=[col for col in sensor_df.columns if col != 'timestamp']
                     )
-
+                    
                     for i, col in enumerate([c for c in sensor_df.columns if c != 'timestamp'], 1):
                         fig.add_trace(
                             go.Scatter(
@@ -545,10 +389,10 @@ class IoTDashboard:
                             ),
                             row=i, col=1
                         )
-
+                    
                     fig.update_layout(height=400 * len([c for c in sensor_df.columns if c != 'timestamp']))
                     st.plotly_chart(fig, use_container_width=True)
-
+                    
                 except Exception as e:
                     st.warning(f"No se pueden visualizar los datos del sensor: {e}")
                     # Mostrar datos raw
@@ -556,60 +400,123 @@ class IoTDashboard:
             else:
                 # Mostrar tabla de datos
                 st.dataframe(df, use_container_width=True)
-
+    
     def render_real_time_data(self):
-        # Renderizar vista de datos en tiempo real
+        """Renderizar vista de datos en tiempo real"""
         st.title("📊 Datos en Tiempo Real")
-
-        # Obtener datos más recientes desde Supabase
-        sensor_df = get_sensor_data()
-        if sensor_df.empty:
+        
+        # Obtener datos más recientes
+        latest_data = self.get_latest_data()
+        
+        if not latest_data or not latest_data.get("success"):
             st.error("No se pueden cargar los datos en tiempo real")
             return
-
-        # Mostrar los últimos 5 registros por dispositivo
-        st.subheader("Últimos 5 registros por dispositivo (Tiempo Real)")
-        devices = sensor_df["device_id"].unique()
-        for device in devices:
-            st.markdown(f"<h5 style='color:{PRIMARY_COLOR};'>Dispositivo: {device}</h5>", unsafe_allow_html=True)
-            df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp", ascending=False).head(5)
-            st.dataframe(df_device, use_container_width=True)
-
-        # Gráficas avanzadas por dispositivo
-        st.subheader("Gráficas avanzadas por dispositivo (Tiempo Real)")
-        for i, device in enumerate(devices):
-            df_device = sensor_df[sensor_df["device_id"] == device].sort_values("timestamp")
-            if not df_device.empty:
-                fig = px.line(df_device, x="timestamp", y="value", color="sensor_type", title=f"{device} - Sensores")
-                fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
-                st.plotly_chart(fig, use_container_width=True, key=f"realtime_plot_{device}_{i}")
-
-        # Dashboard general avanzado
-        st.subheader("Dashboard general avanzado (Tiempo Real)")
-        fig = px.scatter(sensor_df, x="timestamp", y="value", color="device_id", symbol="sensor_type", title="Historial completo de sensores")
-        fig.update_layout(plot_bgcolor=BG_COLOR, paper_bgcolor=BG_COLOR, font_color=PRIMARY_COLOR)
-        st.plotly_chart(fig, use_container_width=True, key="realtime_general_scatter")
-        st.markdown(f"<h6 style='color:{SUCCESS_COLOR};'>Total de registros: {len(sensor_df)}</h6>", unsafe_allow_html=True)
-
+        
+        data = latest_data.get("data", {})
+        
+        # Timestamp de los datos
+        timestamp = data.get('timestamp')
+        if timestamp:
+            st.info(f"📅 Última actualización: {timestamp}")
+        
+        # Datos Arduino USB
+        arduino_usb = data.get('arduino_usb')
+        if arduino_usb:
+            st.markdown("### 🔌 Arduino USB")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.json(arduino_usb)
+            with col2:
+                # Crear gráfico si hay datos numéricos
+                try:
+                    if isinstance(arduino_usb, dict):
+                        numeric_data = {k: v for k, v in arduino_usb.items() 
+                                     if isinstance(v, (int, float))}
+                        if numeric_data:
+                            fig = px.bar(
+                                x=list(numeric_data.keys()),
+                                y=list(numeric_data.values()),
+                                title="Sensores Arduino USB"
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                except Exception:
+                    pass
+        else:
+            st.info("🔌 Arduino USB: Sin datos")
+        
+        # Datos Arduinos Ethernet
+        arduino_ethernet = data.get('arduino_ethernet', [])
+        if arduino_ethernet:
+            st.markdown("### 🌐 Arduinos Ethernet")
+            
+            for i, arduino in enumerate(arduino_ethernet):
+                with st.expander(f"Arduino {arduino.get('device_id', i+1)}"):
+                    st.json(arduino.get('data', {}))
+        else:
+            st.info("🌐 Arduinos Ethernet: Sin datos")
+        
+        # Datos Modbus
+        modbus_devices = data.get('modbus_devices', {})
+        if modbus_devices:
+            st.markdown("### 🔧 Dispositivos Modbus")
+            
+            for device_id, device_data in modbus_devices.items():
+                with st.expander(f"Dispositivo Modbus {device_id}"):
+                    if device_data:
+                        # Crear DataFrame para mejor visualización
+                        df = pd.DataFrame(device_data)
+                        st.dataframe(df, use_container_width=True)
+                        
+                        # Gráfico de valores
+                        if 'value' in df.columns and 'address' in df.columns:
+                            fig = px.bar(
+                                df,
+                                x='address',
+                                y='value',
+                                title=f"Registros Modbus - {device_id}"
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Sin datos disponibles")
+        else:
+            st.info("🔧 Dispositivos Modbus: Sin datos")
+        
+        # Errores
+        errors = data.get('errors', [])
+        if errors:
+            st.markdown("### ⚠️ Errores Recientes")
+            for error in errors:
+                st.error(error)
+        
+        # Auto-refresh para tiempo real
+        if st.button("🔄 Refrescar Datos"):
+            st.rerun()
+        
+        # Refresh automático cada 5 segundos
+        time.sleep(5)
+        st.rerun()
+    
     def run(self):
-        # Ejecutar la aplicación principal
+        """Ejecutar la aplicación principal"""
         # Sidebar
         self.render_sidebar()
-
+        
         # Navegación principal
         tab1, tab2 = st.tabs(["📋 Vista General", "📊 Tiempo Real"])
-
+        
         with tab1:
             self.render_overview()
-
+        
         with tab2:
             self.render_real_time_data()
-
+        
         # Footer
         st.markdown("---")
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
-            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
+            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}"
+        )
 
 # Ejecutar aplicación
 if __name__ == "__main__":

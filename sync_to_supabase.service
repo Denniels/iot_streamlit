@@ -1,0 +1,17 @@
+[Unit]
+Description=Servicio de sincronización automática con Supabase
+After=network.target
+
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/.iot_streamlit"
+Environment="PATH=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/sync_to_supabase.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

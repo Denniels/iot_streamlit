@@ -45,13 +45,42 @@ class SupabaseClient:
         """Insertar datos de sensor"""
         if not self.client:
             return False
-        
+
+        # Convertir Decimal a float en todos los campos
+        def convert_decimal(obj):
+            try:
+                from decimal import Decimal
+            except ImportError:
+                return obj
+            if isinstance(obj, dict):
+                return {k: convert_decimal(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_decimal(v) for v in obj]
+            elif 'Decimal' in str(type(obj)):
+                return float(obj)
+            else:
+                return obj
+
+        sensor_data_clean = convert_decimal(sensor_data)
+        # Convertir timestamp a string ISO si es datetime
+        if 'timestamp' in sensor_data_clean:
+            try:
+                if hasattr(sensor_data_clean['timestamp'], 'isoformat'):
+                    sensor_data_clean['timestamp'] = sensor_data_clean['timestamp'].isoformat()
+            except Exception:
+                pass
+        # Eliminar el campo created_at si existe
+        sensor_data_clean.pop('created_at', None)
+
         try:
-            result = self.client.table('sensor_data').insert(sensor_data).execute()
-            logger.debug(f"Datos insertados para dispositivo: {sensor_data.get('device_id')}")
+            # Logging detallado del objeto antes de insertar
+            logger.error(f"Intentando insertar en Supabase: {json.dumps(sensor_data_clean, default=str)}")
+            result = self.client.table('sensor_data').insert(sensor_data_clean).execute()
+            logger.debug(f"Datos insertados para dispositivo: {sensor_data_clean.get('device_id')}")
             return True
         except Exception as e:
             logger.error(f"Error insertando datos de sensor: {e}")
+            logger.error(f"Objeto problemático: {json.dumps(sensor_data_clean, default=str)}")
             return False
     
     def update_device_status(self, device_id: str, status: str) -> bool:
