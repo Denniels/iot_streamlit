@@ -75,22 +75,47 @@ class IoTDashboard:
             return None
 
     def get_all_devices(self):
-        """Obtener todos los device_id únicos en Supabase, sin importar antigüedad"""
+        """Obtener todos los device_id únicos en Supabase y mostrar ambos tipos aunque no tengan datos recientes"""
         try:
             response = supabase.table("sensor_data").select("device_id").execute()
+            devices = set()
             if response.data:
-                devices = list(set([row['device_id'] for row in response.data if row.get('device_id')]))
-                devices.sort()
-                st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
-                for device in devices:
-                    st.sidebar.write(f"  • {device}")
-                return devices
-            else:
-                st.sidebar.warning("⚠️ No se encontraron dispositivos en la base de datos")
-                return []
+                for row in response.data:
+                    if row.get('device_id'):
+                        devices.add(row['device_id'])
+            # Forzar mostrar ambos tipos si existen en la red
+            # USB
+            usb_id = 'arduino_usb_001'
+            ethernet_id = 'arduino_ethernet_192_168_0_110'
+            # Puedes agregar más device_id conocidos aquí si tienes más
+            devices.update([usb_id, ethernet_id])
+            devices = sorted(list(devices))
+            st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
+            for device in devices:
+                st.sidebar.write(f"  • {device}")
+            return devices
         except Exception as e:
             st.sidebar.error(f"❌ Error obteniendo lista de dispositivos: {e}")
             return []
+    def get_service_status(self):
+        """Obtiene el estado de los servicios systemd relevantes y los muestra en el dashboard"""
+        import subprocess
+        services = [
+            ('acquire_data.service', 'Adquisición USB'),
+            ('backend_api.service', 'API Backend'),
+            ('sync_to_supabase.service', 'Sync Supabase')
+        ]
+        status_dict = {}
+        for svc, label in services:
+            try:
+                result = subprocess.run([
+                    'systemctl', 'is-active', svc
+                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                status = result.stdout.strip()
+                status_dict[label] = status
+            except Exception as e:
+                status_dict[label] = f"Error: {e}"
+        return status_dict
 
     def verify_supabase_connection(self):
         """Verifica la conexión con Supabase y muestra estadísticas"""
@@ -120,6 +145,13 @@ class IoTDashboard:
 <i>Captura &rarr; Almacenamiento local &rarr; Sincronización cloud &rarr; Visualización en tiempo real</i>
 </div>
 """, unsafe_allow_html=True)
+        # Estado de servicios systemd
+        st.markdown("## 🛠️ Estado de Servicios")
+        status_dict = self.get_service_status()
+        cols = st.columns(len(status_dict))
+        for i, (label, status) in enumerate(status_dict.items()):
+            color = "#28a745" if status == "active" else ("#ffc107" if status == "activating" else "#dc3545")
+            cols[i].markdown(f"<div style='background:{color};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;'><b>{label}</b><br>{status}</div>", unsafe_allow_html=True)
         
         # Verificar conexión con Supabase
         if not self.verify_supabase_connection():
