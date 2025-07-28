@@ -10,6 +10,16 @@ from backend.config import Config, get_logger
 logger = get_logger(__name__)
 
 class SupabaseClient:
+    def get_system_events(self, limit: int = 50) -> List[Dict]:
+        """Obtener los eventos recientes del sistema"""
+        if not self.client:
+            return []
+        try:
+            result = self.client.table('system_events').select('*').order('timestamp', desc=True).limit(limit).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            logger.error(f"Error obteniendo eventos del sistema: {e}")
+            return []
     """Cliente para operaciones con Supabase"""
     
     def __init__(self):

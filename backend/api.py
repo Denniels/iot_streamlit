@@ -66,10 +66,9 @@ async def startup_event():
     logger.info("Iniciando API REST IoT Backend...")
     
     try:
-        # Inicializar detectores de dispositivos
-        data_acquisition.initialize_devices()
-        logger.info("Sistema inicializado correctamente")
-        
+        # Inicializar detectores de dispositivos (comentado para pruebas de integridad)
+        # data_acquisition.initialize_devices()
+        logger.info("[TEST] Inicialización de dispositivos deshabilitada para prueba de API.")
     except Exception as e:
         logger.error(f"Error en inicialización: {e}")
 
@@ -378,17 +377,15 @@ async def get_system_logs(limit: int = 50):
 
 # Función principal para ejecutar el servidor
 def run_api_server():
-    """Ejecutar servidor API con configuración"""
-    host = IOT_CONFIG.get('api_host', '0.0.0.0')
-    port = IOT_CONFIG.get('api_port', 8000)
-    
+    """Ejecutar servidor API con configuración por defecto"""
+    host = "0.0.0.0"
+    port = 8000
     logger.info(f"Iniciando servidor API en {host}:{port}")
-    
     uvicorn.run(
         "backend.api:app",
         host=host,
         port=port,
-        reload=False,  # En producción no usar reload
+        reload=False,
         log_level="info"
     )
 

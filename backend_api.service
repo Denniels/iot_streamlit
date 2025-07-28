@@ -11,6 +11,7 @@ Environment=PATH=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin:/usr/bin:/b
 ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python -m uvicorn backend.api:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
+TimeoutStopSec=10
 StandardOutput=journal
 StandardError=journal
 

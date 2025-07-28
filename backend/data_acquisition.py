@@ -178,20 +178,37 @@ class DataAcquisition:
                 time.sleep(5)  # Esperar antes de reintentar
     
     def stop_acquisition(self):
-        """Detener adquisición continua"""
-        logger.info("Deteniendo adquisición de datos...")
+        """Detener adquisición continua y liberar recursos de forma robusta"""
+        logger.info("[SHUTDOWN] Deteniendo adquisición de datos...")
         self.running = False
-        
-        # Cerrar conexiones
-        self.arduino_detector.close_connections()
-        self.modbus_scanner.close_all_connections()
-        
+
+        # Cerrar conexiones Arduino
+        try:
+            logger.info("[SHUTDOWN] Cerrando conexiones Arduino...")
+            self.arduino_detector.close_connections()
+            logger.info("[SHUTDOWN] Conexiones Arduino cerradas.")
+        except Exception as e:
+            logger.error(f"[SHUTDOWN] Error cerrando conexiones Arduino: {e}")
+
+        # Cerrar conexiones Modbus
+        try:
+            logger.info("[SHUTDOWN] Cerrando conexiones Modbus...")
+            self.modbus_scanner.close_all_connections()
+            logger.info("[SHUTDOWN] Conexiones Modbus cerradas.")
+        except Exception as e:
+            logger.error(f"[SHUTDOWN] Error cerrando conexiones Modbus: {e}")
+
         # Log evento
-        self.db_client.log_system_event(
-            'acquisition_stopped',
-            None,
-            'Adquisición de datos detenida'
-        )
+        try:
+            self.db_client.log_system_event(
+                'acquisition_stopped',
+                None,
+                'Adquisición de datos detenida'
+            )
+        except Exception as e:
+            logger.error(f"[SHUTDOWN] Error logueando evento de apagado: {e}")
+
+        logger.info("[SHUTDOWN] Apagado de adquisición completado.")
     
     def get_current_status(self) -> Dict[str, Any]:
         """Obtener estado actual del sistema"""
