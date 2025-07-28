@@ -71,6 +71,10 @@ def sync_data():
         try:
             if supabase_client.insert_sensor_data(row):
                 success_count += 1
+                # Actualizar el campo synced en la base local
+                update_query = "UPDATE sensor_data SET synced = TRUE WHERE device_id = %s AND sensor_type = %s AND timestamp = %s"
+                update_params = (row['device_id'], row['sensor_type'], row['timestamp'])
+                pg_client.execute_query(update_query, update_params)
         except Exception as e:
             logger.error(f"Error sincronizando fila: {e}")
 
