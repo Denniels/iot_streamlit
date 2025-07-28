@@ -14,6 +14,65 @@ from backend.db_writer import SupabaseClient
 logger = get_logger(__name__)
 
 class ArduinoDetector:
+    def start_dashboard_update(self, dashboard_callback):
+        """Inicia la actualización periódica del dashboard con datos USB y Ethernet"""
+        import threading
+        collected_usb = []
+        collected_eth = []
+        last_dashboard_send = time.time()
+
+        def update_loop():
+            nonlocal last_dashboard_send
+            while True:
+                # Leer USB
+                usb_data = self.read_usb_data()
+                if usb_data:
+                    collected_usb.append(usb_data)
+                # Leer Ethernet (puedes ajustar IP/puerto según tu red)
+                eth_devices = self.detect_ethernet_arduinos()
+                for dev in eth_devices:
+                    ip = dev.get('ip_address')
+                    port = dev.get('metadata', {}).get('port', 80)
+                    eth_data = self.read_ethernet_data(ip, port)
+                    if eth_data:
+                        collected_eth.append(eth_data)
+                # Enviar al dashboard cada 10 seg
+                if dashboard_callback and (time.time() - last_dashboard_send) >= 10:
+                    dashboard_callback({
+                        'usb': collected_usb,
+                        'ethernet': collected_eth
+                    })
+                    collected_usb.clear()
+                    collected_eth.clear()
+                    last_dashboard_send = time.time()
+                time.sleep(5)
+
+        t = threading.Thread(target=update_loop, daemon=True)
+        t.start()
+        self.logger.info("⏳ Actualización periódica de dashboard iniciada (USB y Ethernet)")
+    def run_periodic_usb_reader(self, dashboard_callback=None):
+        """Lee datos del Arduino cada 5 seg y envía al dashboard cada 10 seg (por lotes)"""
+        import threading
+        collected_data = []
+        last_dashboard_send = time.time()
+
+        def reader_loop():
+            nonlocal last_dashboard_send
+            while True:
+                data = self.read_usb_data()
+                if data:
+                    collected_data.append(data)
+                # Enviar al dashboard cada 10 seg
+                if dashboard_callback and (time.time() - last_dashboard_send) >= 10:
+                    if collected_data:
+                        dashboard_callback(collected_data)
+                        collected_data.clear()
+                    last_dashboard_send = time.time()
+                time.sleep(5)
+
+        t = threading.Thread(target=reader_loop, daemon=True)
+        t.start()
+        self.logger.info("⏳ Lectura periódica USB iniciada (cada 5s, envío dashboard cada 10s)")
     """Detector y comunicador para Arduinos USB y Ethernet"""
     
     def __init__(self, db_client: SupabaseClient):
