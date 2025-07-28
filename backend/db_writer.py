@@ -42,7 +42,7 @@ class SupabaseClient:
             return False
     
     def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
-        """Insertar datos de sensor"""
+        """Registrar el dispositivo si no existe y luego insertar/upsert datos de sensor evitando duplicados"""
         if not self.client:
             return False
 
@@ -72,14 +72,37 @@ class SupabaseClient:
         # Eliminar el campo created_at si existe
         sensor_data_clean.pop('created_at', None)
 
+        # Registrar el dispositivo si no existe
+        # Concatenar device_id y device_type para unicidad
+        device_id = sensor_data_clean.get('device_id')
+        device_type = sensor_data_clean.get('raw_data', {}).get('device_type') or sensor_data_clean.get('device_type', 'arduino_ethernet')
+        if device_id:
+            device_id_concat = f"{device_id}_{device_type}"
+            sensor_data_clean['device_id'] = device_id_concat
+            # Verificar si el dispositivo existe en Supabase
+            existing = self.client.table('devices').select('device_id').eq('device_id', device_id_concat).execute()
+            if not existing.data:
+                # Registrar dispositivo mínimo
+                device_data = {
+                    'device_id': device_id_concat,
+                    'device_type': device_type,
+                    'status': 'online',
+                    'last_seen': datetime.now().isoformat()
+                    }
+                self.register_device(device_data)
+
         try:
             # Logging detallado del objeto antes de insertar
-            logger.error(f"Intentando insertar en Supabase: {json.dumps(sensor_data_clean, default=str)}")
-            result = self.client.table('sensor_data').insert(sensor_data_clean).execute()
-            logger.debug(f"Datos insertados para dispositivo: {sensor_data_clean.get('device_id')}")
+            logger.error(f"Intentando UPSERT en Supabase: {json.dumps(sensor_data_clean, default=str)}")
+            # Usar upsert para evitar duplicados por device_id, sensor_type y timestamp
+            result = self.client.table('sensor_data').upsert(
+                sensor_data_clean,
+                on_conflict=["device_id", "sensor_type", "timestamp"]
+            ).execute()
+            logger.debug(f"Datos upsert para dispositivo: {sensor_data_clean.get('device_id')}")
             return True
         except Exception as e:
-            logger.error(f"Error insertando datos de sensor: {e}")
+            logger.error(f"Error upsert datos de sensor: {e}")
             logger.error(f"Objeto problemático: {json.dumps(sensor_data_clean, default=str)}")
             return False
     

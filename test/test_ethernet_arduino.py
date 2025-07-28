@@ -15,7 +15,7 @@ def test_arduino_ethernet():
     
     # IP del Arduino Ethernet (según los logs anteriores)
     arduino_ip = "192.168.0.110"
-    url = f"http://{arduino_ip}/sensors"
+    url = f"http://{arduino_ip}/status"
     
     print(f"🔍 Probando conexión con: {url}")
     
@@ -69,7 +69,7 @@ def test_multiple_requests():
     print("-" * 40)
     
     arduino_ip = "192.168.0.110"
-    url = f"http://{arduino_ip}/sensors"
+    url = f"http://{arduino_ip}/status"
     
     success_count = 0
     total_requests = 5

@@ -10,8 +10,10 @@ from plotly.subplots import make_subplots
 import json
 from datetime import datetime, timedelta
 import time
+from streamlit_autorefresh import st_autorefresh
 
 # Configuración de página
+st_autorefresh(interval=30 * 1000, key="data_refresh")
 st.set_page_config(
     page_title="IoT Dashboard",
     page_icon="🌐",
@@ -227,24 +229,7 @@ class IoTDashboard:
         st.markdown("---")
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
-            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
-        if not data:
-            st.error("No se pueden cargar los datos desde Supabase")
-            return
-        df = pd.DataFrame(data)
-        if df.empty:
-            st.info("No hay datos disponibles en Supabase.")
-            return
-        # Mostrar tabla principal
-        st.markdown("### � Últimos datos de sensores")
-        st.dataframe(df, use_container_width=True)
-        # Métricas rápidas
-        st.markdown("### 📊 Métricas rápidas")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Total registros", len(df))
-        with col2:
-            st.metric("Última actualización", str(df['timestamp'].max()))
+            f"Última actualización: {datetime.now().strftime('%H:%M:%S')}")
 
     def run(self):
         self.render_overview()
