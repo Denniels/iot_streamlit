@@ -63,7 +63,7 @@ def main():
         print(f"Arduino USB detectado en: {arduino.auto_detected_port}")
         logger.info(f"Arduino USB detectado en: {arduino.auto_detected_port}")
 
-    # Detectar Arduino Ethernet
+    # Detectar Arduino Ethernet (primer intento)
     print("Buscando Arduino Ethernet en la red...")
     ethernet_devices = arduino.detect_ethernet_arduinos(network_range="192.168.0")
     if ethernet_devices:
@@ -73,9 +73,10 @@ def main():
     else:
         print("No se detectaron Arduinos Ethernet en la red.")
 
-    # Adquisición continua
+    # Adquisición continua con reintento de detección Ethernet cada 60s
     print("Adquiriendo datos... (Ctrl+C para detener)")
     try:
+        last_ethernet_scan = time.time()
         while True:
             # USB
             if usb_ok:
@@ -114,6 +115,17 @@ def main():
                                 }
                                 arduino.db_client.insert_sensor_data(sensor_data)
                                 print(f"ETH {sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
+            # Reintentar detección Ethernet cada 60 segundos
+            if time.time() - last_ethernet_scan > 60:
+                print("Reintentando detección de Arduino Ethernet en la red...")
+                ethernet_devices = arduino.detect_ethernet_arduinos(network_range="192.168.0")
+                if ethernet_devices:
+                    print(f"Dispositivos Ethernet detectados: {len(ethernet_devices)}")
+                    for dev in ethernet_devices:
+                        print(f"  - {dev['device_id']} en {dev['ip_address']}:{dev['metadata']['port']}")
+                else:
+                    print("No se detectaron Arduinos Ethernet en la red.")
+                last_ethernet_scan = time.time()
             time.sleep(2)
     except KeyboardInterrupt:
         print("\nAdquisición detenida por el usuario.")

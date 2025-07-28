@@ -68,20 +68,29 @@ class IoTDashboard:
         try:
             # Consulta robusta que incluye todos los dispositivos con más registros
             response = supabase.table("sensor_data").select("*").order("timestamp", desc=True).limit(limit).execute()
-            
-            # Debug: mostrar información de dispositivos encontrados
-            if response.data:
-                devices = set([row['device_id'] for row in response.data])
-                st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
-                for device in devices:
-                    device_count = len([row for row in response.data if row['device_id'] == device])
-                    st.sidebar.write(f"  • {device}: {device_count} registros")
-            
             return response.data
         except Exception as e:
             st.error(f"❌ Error consultando Supabase: {e}")
             st.error(f"Detalles del error: {str(e)}")
             return None
+
+    def get_all_devices(self):
+        """Obtener todos los device_id únicos en Supabase, sin importar antigüedad"""
+        try:
+            response = supabase.table("sensor_data").select("device_id").execute()
+            if response.data:
+                devices = list(set([row['device_id'] for row in response.data if row.get('device_id')]))
+                devices.sort()
+                st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
+                for device in devices:
+                    st.sidebar.write(f"  • {device}")
+                return devices
+            else:
+                st.sidebar.warning("⚠️ No se encontraron dispositivos en la base de datos")
+                return []
+        except Exception as e:
+            st.sidebar.error(f"❌ Error obteniendo lista de dispositivos: {e}")
+            return []
 
     def verify_supabase_connection(self):
         """Verifica la conexión con Supabase y muestra estadísticas"""
@@ -126,23 +135,25 @@ class IoTDashboard:
             st.info("No hay datos disponibles en Supabase.")
             return
 
-        # Selección de dispositivo
+        # Selección de dispositivo (mostrar todos los device_id únicos en Supabase)
         st.markdown("### 📱 Selecciona un dispositivo para visualizar sus datos")
-        device_ids = df['device_id'].drop_duplicates().tolist()
-        
-        # Ordenar dispositivos para mejor visualización
-        device_ids.sort()
-        
-        # Mostrar información de dispositivos disponibles
+        device_ids = self.get_all_devices()
         st.info(f"📊 Dispositivos disponibles: {len(device_ids)}")
         for device in device_ids:
             device_type = "🔌 USB" if "usb" in device.lower() else "🌐 Ethernet" if "ethernet" in device.lower() else "❓ Desconocido"
-            count = len(df[df['device_id'] == device])
+            count = len([row for row in df.to_dict('records') if row.get('device_id') == device])
             st.write(f"{device_type} **{device}** - {count} registros")
-        
         selected_device = st.selectbox("Dispositivo:", device_ids, key="device_selector")
 
+        # Si no hay datos recientes, buscar los últimos datos históricos del dispositivo seleccionado
         df_device = df[df['device_id'] == selected_device]
+        if df_device.empty:
+            # Buscar los últimos datos históricos del dispositivo
+            data_hist = supabase.table("sensor_data").select("*").eq("device_id", selected_device).order("timestamp", desc=True).limit(50).execute()
+            if data_hist.data:
+                df_device = pd.DataFrame(data_hist.data)
+            else:
+                df_device = pd.DataFrame()
 
         # Mostrar tabla principal filtrada o mensaje si no hay datos
         st.markdown(f"### Últimos datos de sensores - {selected_device}")

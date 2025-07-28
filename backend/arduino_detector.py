@@ -18,6 +18,7 @@ class ArduinoDetector:
     
     def __init__(self, db_client: SupabaseClient):
         self.db_client = db_client
+        self.logger = logger  # Usar el logger del módulo
         self.usb_connection = None
         self.detected_devices = []
         self.auto_detected_port = None
@@ -308,23 +309,34 @@ class ArduinoDetector:
                         result = sock.connect_ex((ip, port))
                         
                         if result == 0:
-                            # Intentar comunicación básica
-                            if self._test_arduino_ethernet(ip, port):
-                                device_id = f"arduino_eth_{ip}_{port}"
+                            # Solo probar Arduino Ethernet en puerto 80 (HTTP)
+                            if port == 80 and self._test_arduino_ethernet(ip):
+                                # Obtener el device_id real del Arduino
+                                import requests
+                                try:
+                                    response = requests.get(f'http://{ip}/data', timeout=3)
+                                    if response.status_code == 200:
+                                        data = response.json()
+                                        device_id = data.get('device_id', f"arduino_ethernet_{ip.replace('.', '_')}")
+                                    else:
+                                        device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
+                                except:
+                                    device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
+                                
                                 device_data = {
                                     'device_id': device_id,
                                     'device_type': 'arduino_ethernet',
                                     'name': f'Arduino Ethernet {ip}',
                                     'ip_address': ip,
                                     'status': 'online',
-                                    'metadata': {'protocol': 'tcp', 'port': port}
+                                    'metadata': {'protocol': 'http', 'port': port}
                                 }
                                 
                                 self.db_client.register_device(device_data)
                                 self.db_client.log_system_event('device_connected', device_id, f'Arduino Ethernet detectado en {ip}:{port}')
                                 
                                 detected.append(device_data)
-                                logger.info(f"Arduino Ethernet detectado: {ip}:{port}")
+                                self.logger.info(f"✅ Arduino Ethernet detectado: {device_id} en {ip}:{port}")
                         
                         sock.close()
                         
@@ -342,6 +354,39 @@ class ArduinoDetector:
     def read_ethernet_data(self, ip: str, port: int) -> Optional[Dict[str, Any]]:
         """Leer datos de Arduino Ethernet"""
         try:
+            # Para puerto 80, usar HTTP
+            if port == 80:
+                import requests
+                try:
+                    # Usar la ruta correcta /data
+                    response = requests.get(f'http://{ip}/data', timeout=3)
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if data and 'sensors' in data:
+                            # Usar el device_id que viene del Arduino
+                            device_id = data.get('device_id', f"arduino_ethernet_{ip.replace('.', '_')}")
+                            
+                            # Insertar cada sensor por separado
+                            for sensor_name, value in data['sensors'].items():
+                                sensor_data = {
+                                    'device_id': device_id,
+                                    'sensor_type': sensor_name,
+                                    'value': value,
+                                    'unit': '°C' if 'temperature' in sensor_name else '',
+                                    'raw_data': data,
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                                
+                                self.db_client.insert_sensor_data(sensor_data)
+                            
+                            return data
+                            
+                except Exception as e:
+                    self.logger.error(f"Error HTTP leyendo datos Ethernet {ip}: {e}")
+                    return None
+            
+            # Para otros puertos, usar socket TCP
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
             sock.connect((ip, port))
@@ -375,22 +420,30 @@ class ArduinoDetector:
             logger.error(f"Error leyendo datos Ethernet {ip}:{port}: {e}")
             return None
     
-    def _test_arduino_ethernet(self, ip: str, port: int) -> bool:
-        """Probar si hay un Arduino en la IP/puerto especificado"""
+    def _test_arduino_ethernet(self, ip: str) -> bool:
+        """Probar si hay un Arduino Ethernet en la IP especificada"""
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)
-            sock.connect((ip, port))
+            import requests
             
-            # Enviar comando de identificación
-            sock.send(b'WHO\n')
-            response = sock.recv(1024).decode().strip()
+            # Probar el endpoint correcto /data
+            url = f"http://{ip}/data"
+            response = requests.get(url, timeout=3)
             
-            sock.close()
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    # Verificar que es un Arduino con sensores
+                    if (data.get('device_type') == 'arduino_ethernet' and 
+                        'sensors' in data and 'device_id' in data):
+                        self.logger.info(f"✅ Arduino Ethernet encontrado en {ip}: {data.get('device_id')}")
+                        return True
+                except json.JSONDecodeError:
+                    pass
             
-            return 'arduino' in response.lower()
+            return False
             
-        except:
+        except Exception as e:
+            self.logger.debug(f"No hay Arduino Ethernet en {ip}: {e}")
             return False
     
     def _parse_arduino_data(self, raw_data: str) -> Optional[Dict[str, Any]]:
