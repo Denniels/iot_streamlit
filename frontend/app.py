@@ -64,13 +64,41 @@ class IoTDashboard:
         if 'selected_device' not in st.session_state:
             st.session_state.selected_device = None
 
-    def get_sensor_data(self, limit=100):
+    def get_sensor_data(self, limit=500):
         try:
+            # Consulta robusta que incluye todos los dispositivos con más registros
             response = supabase.table("sensor_data").select("*").order("timestamp", desc=True).limit(limit).execute()
+            
+            # Debug: mostrar información de dispositivos encontrados
+            if response.data:
+                devices = set([row['device_id'] for row in response.data])
+                st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
+                for device in devices:
+                    device_count = len([row for row in response.data if row['device_id'] == device])
+                    st.sidebar.write(f"  • {device}: {device_count} registros")
+            
             return response.data
         except Exception as e:
             st.error(f"❌ Error consultando Supabase: {e}")
+            st.error(f"Detalles del error: {str(e)}")
             return None
+
+    def verify_supabase_connection(self):
+        """Verifica la conexión con Supabase y muestra estadísticas"""
+        try:
+            # Consulta básica para verificar conexión
+            response = supabase.table("sensor_data").select("device_id", count="exact").execute()
+            
+            st.sidebar.success("✅ Conexión con Supabase establecida")
+            st.sidebar.write(f"📊 Total de registros: {response.count}")
+            
+            # Obtener estadísticas por dispositivo
+            device_stats = supabase.table("sensor_data").select("device_id", count="exact").execute()
+            
+            return True
+        except Exception as e:
+            st.sidebar.error(f"❌ Error de conexión con Supabase: {e}")
+            return False
 
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
@@ -83,6 +111,12 @@ class IoTDashboard:
 <i>Captura &rarr; Almacenamiento local &rarr; Sincronización cloud &rarr; Visualización en tiempo real</i>
 </div>
 """, unsafe_allow_html=True)
+        
+        # Verificar conexión con Supabase
+        if not self.verify_supabase_connection():
+            st.error("No se puede conectar con Supabase. Verifique la configuración.")
+            return
+        
         data = self.get_sensor_data(200)
         if not data:
             st.error("No se pueden cargar los datos desde Supabase")
@@ -93,9 +127,20 @@ class IoTDashboard:
             return
 
         # Selección de dispositivo
-        st.markdown("### Selecciona un dispositivo para visualizar sus datos")
+        st.markdown("### 📱 Selecciona un dispositivo para visualizar sus datos")
         device_ids = df['device_id'].drop_duplicates().tolist()
-        selected_device = st.selectbox("Dispositivo:", device_ids)
+        
+        # Ordenar dispositivos para mejor visualización
+        device_ids.sort()
+        
+        # Mostrar información de dispositivos disponibles
+        st.info(f"📊 Dispositivos disponibles: {len(device_ids)}")
+        for device in device_ids:
+            device_type = "🔌 USB" if "usb" in device.lower() else "🌐 Ethernet" if "ethernet" in device.lower() else "❓ Desconocido"
+            count = len(df[df['device_id'] == device])
+            st.write(f"{device_type} **{device}** - {count} registros")
+        
+        selected_device = st.selectbox("Dispositivo:", device_ids, key="device_selector")
 
         df_device = df[df['device_id'] == selected_device]
 
@@ -272,6 +317,25 @@ class IoTDashboard:
                 self.render_device_details(selected)
         else:
             st.info("No hay dispositivos detectados. Usa el botón 'Escanear Red' para buscar dispositivos.")
+    
+    def get_device_data(self, device_id, hours=24):
+        """Obtener datos específicos de un dispositivo con fallback para datos históricos"""
+        try:
+            # Primero buscar datos recientes
+            from datetime import datetime, timedelta
+            cutoff_time = datetime.now() - timedelta(hours=hours)
+            
+            response = supabase.table("sensor_data").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
+            
+            # Si no hay datos recientes, buscar los últimos registros del dispositivo
+            if not response.data:
+                st.warning(f"⚠️ No hay datos recientes para {device_id}. Buscando últimos registros...")
+                response = supabase.table("sensor_data").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
+            
+            return {"success": True, "data": response.data}
+        except Exception as e:
+            st.error(f"❌ Error consultando datos del dispositivo {device_id}: {e}")
+            return {"success": False, "data": []}
     
     def render_device_details(self, device_id: str):
         """Renderizar detalles de un dispositivo específico"""
