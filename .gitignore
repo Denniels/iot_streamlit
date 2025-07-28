@@ -1,0 +1,8 @@
+# Ignorar archivos de logs y bases de datos locales
+*.log
+*.db
+acquire.log
+iot_backend.log
+sync.log
+iot_local.db
+__pycache__/
