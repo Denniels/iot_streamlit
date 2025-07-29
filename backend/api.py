@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import uvicorn
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 
 from backend.config import get_logger
@@ -97,7 +97,7 @@ async def root():
             "devices": "/devices",
             "data": "/data"
         },
-        timestamp=datetime.now()
+        timestamp=datetime.now(timezone.utc)
     )
 
 @app.get("/health")
@@ -110,7 +110,7 @@ async def health_check():
         
         return {
             "status": "healthy",
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now(timezone.utc),
             "database": "connected",
             "devices_count": len(devices)
         }

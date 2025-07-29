@@ -3,7 +3,7 @@ Adquisición y formateo de datos de todos los dispositivos
 """
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from backend.config import get_logger
 from backend.db_writer import SupabaseClient
@@ -67,7 +67,7 @@ class DataAcquisition:
     def collect_all_data(self) -> Dict[str, Any]:
         """Recopilar datos de todos los dispositivos"""
         collected_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'arduino_usb': None,
             'arduino_ethernet': [],
             'modbus_devices': {},
@@ -215,7 +215,7 @@ class DataAcquisition:
         devices = self.db_client.get_devices()
         
         status = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'running': self.running,
             'devices': {
                 'total': len(devices),
@@ -232,6 +232,6 @@ class DataAcquisition:
     def get_latest_data(self) -> Dict[str, Any]:
         """Obtener los datos más recientes"""
         return self.data_cache if self.data_cache else {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'message': 'No hay datos disponibles'
         }

@@ -2,7 +2,7 @@
 Cliente para interactuar con Supabase
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 from backend.config import Config, get_logger
@@ -142,7 +142,7 @@ class SupabaseClient:
             event_data = {
                 'event_type': event_type,
                 'message': message,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
             if device_id:

@@ -4,7 +4,7 @@ Escáner y cliente para dispositivos Modbus
 from pymodbus.client import ModbusTcpClient, ModbusSerialClient
 from pymodbus.exceptions import ModbusException
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from backend.config import Config, get_logger
 from backend.db_writer import SupabaseClient
@@ -167,7 +167,7 @@ class ModbusScanner:
                                         'register_type': 'holding',
                                         'unit_id': unit_id
                                     },
-                                    'timestamp': datetime.now().isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()
                                 }
                                 
                                 data_points.append(data_point)

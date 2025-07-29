@@ -5,7 +5,7 @@ import serial
 import serial.tools.list_ports
 import socket
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import time
 from backend.config import Config, get_logger
@@ -274,7 +274,7 @@ class ArduinoDetector:
                                     'value': float(value) if isinstance(value, (int, float)) else value,
                                     'unit': self._get_sensor_unit(sensor_name),
                                     'raw_data': data,
-                                    'timestamp': datetime.now().isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()
                                 }
                                 
                                 self.db_client.insert_sensor_data(sensor_data)
@@ -434,7 +434,7 @@ class ArduinoDetector:
                                     'value': value,
                                     'unit': '°C' if 'temperature' in sensor_name else '',
                                     'raw_data': data,
-                                    'timestamp': datetime.now().isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()
                                 }
                                 
                                 self.db_client.insert_sensor_data(sensor_data)
@@ -467,7 +467,7 @@ class ArduinoDetector:
                         'value': data.get('value'),
                         'unit': data.get('unit', ''),
                         'raw_data': data,
-                        'timestamp': datetime.now().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     }
                     
                     self.db_client.insert_sensor_data(sensor_data)

@@ -383,7 +383,7 @@ class IoTDashboard:
         df = pd.DataFrame(data_points)
         
         if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df = df.sort_values('timestamp')
             
             # Gráfico temporal
