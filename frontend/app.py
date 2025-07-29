@@ -69,7 +69,7 @@ class IoTDashboard:
     def get_sensor_data(self, limit=500):
         try:
             # Consulta robusta que incluye todos los dispositivos con más registros
-            response = supabase.table("sensor_data").select("*").order("timestamp", desc=True).limit(limit).execute()
+            response = supabase.table("sensor_data_test").select("*").order("timestamp", desc=True).limit(limit).execute()
             return response.data
         except Exception as e:
             st.error(f"❌ Error consultando Supabase: {e}")
@@ -79,7 +79,7 @@ class IoTDashboard:
     def get_all_devices(self):
         """Obtener todos los device_id únicos en Supabase y mostrar ambos tipos aunque no tengan datos recientes"""
         try:
-            response = supabase.table("sensor_data").select("device_id").execute()
+            response = supabase.table("sensor_data_test").select("device_id").execute()
             devices = set()
             if response.data:
                 for row in response.data:
@@ -123,13 +123,13 @@ class IoTDashboard:
         """Verifica la conexión con Supabase y muestra estadísticas"""
         try:
             # Consulta básica para verificar conexión
-            response = supabase.table("sensor_data").select("device_id", count="exact").execute()
+            response = supabase.table("sensor_data_test").select("device_id", count="exact").execute()
             
             st.sidebar.success("✅ Conexión con Supabase establecida")
             st.sidebar.write(f"📊 Total de registros: {response.count}")
             
             # Obtener estadísticas por dispositivo
-            device_stats = supabase.table("sensor_data").select("device_id", count="exact").execute()
+            device_stats = supabase.table("sensor_data_test").select("device_id", count="exact").execute()
             
             return True
         except Exception as e:
@@ -185,7 +185,7 @@ class IoTDashboard:
         df_device = df[df['device_id'] == selected_device]
         if df_device.empty:
             # Buscar los últimos datos históricos del dispositivo
-            data_hist = supabase.table("sensor_data").select("*").eq("device_id", selected_device).order("timestamp", desc=True).limit(50).execute()
+            data_hist = supabase.table("sensor_data_test").select("*").eq("device_id", selected_device).order("timestamp", desc=True).limit(50).execute()
             if data_hist.data:
                 df_device = pd.DataFrame(data_hist.data)
             else:
@@ -357,12 +357,12 @@ class IoTDashboard:
             from datetime import datetime, timedelta
             cutoff_time = datetime.now() - timedelta(hours=hours)
             
-            response = supabase.table("sensor_data").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
+            response = supabase.table("sensor_data_test").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
             
             # Si no hay datos recientes, buscar los últimos registros del dispositivo
             if not response.data:
                 st.warning(f"⚠️ No hay datos recientes para {device_id}. Buscando últimos registros...")
-                response = supabase.table("sensor_data").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
+                response = supabase.table("sensor_data_test").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
             
             return {"success": True, "data": response.data}
         except Exception as e:
