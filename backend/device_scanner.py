@@ -9,14 +9,14 @@ import netifaces
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from backend.config import Config, get_logger
-from backend.db_writer import SupabaseClient
+from backend.db_writer import LocalPostgresClient
 
 logger = get_logger(__name__)
 
 class DeviceScanner:
     """Escáner de dispositivos en la red"""
     
-    def __init__(self, db_client: SupabaseClient):
+    def __init__(self, db_client: LocalPostgresClient):
         self.db_client = db_client
         self.discovered_devices = []
     

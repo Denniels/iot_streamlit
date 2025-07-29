@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 from backend.config import get_logger
-from backend.db_writer import SupabaseClient
+from backend.db_writer import LocalPostgresClient
 from backend.arduino_detector import ArduinoDetector
 from backend.device_scanner import DeviceScanner
 from backend.modbus_scanner import ModbusScanner
@@ -17,7 +17,7 @@ class DataAcquisition:
     """Coordinador principal para adquisición de datos"""
     
     def __init__(self):
-        self.db_client = SupabaseClient()
+        self.db_client = LocalPostgresClient()
         self.arduino_detector = ArduinoDetector(self.db_client)
         self.device_scanner = DeviceScanner(self.db_client)
         self.modbus_scanner = ModbusScanner(self.db_client)

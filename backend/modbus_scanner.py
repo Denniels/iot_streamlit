@@ -7,14 +7,14 @@ import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from backend.config import Config, get_logger
-from backend.db_writer import SupabaseClient
+from backend.db_writer import LocalPostgresClient
 
 logger = get_logger(__name__)
 
 class ModbusScanner:
     """Escáner y lector para dispositivos Modbus"""
     
-    def __init__(self, db_client: SupabaseClient):
+    def __init__(self, db_client: LocalPostgresClient):
         self.db_client = db_client
         self.modbus_devices = []
         self.clients = {}
@@ -173,7 +173,7 @@ class ModbusScanner:
                                 data_points.append(data_point)
                                 
                                 # Insertar en base de datos
-                                self.db_client.insert_sensor_data(data_point)
+                                self.db_client.insert_sensor_data(data_point)  # data_point debe ser compatible con sensor_data_clean
                 
                 except Exception as e:
                     logger.error(f"Error leyendo registro {register_info}: {e}")

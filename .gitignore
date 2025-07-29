@@ -6,3 +6,6 @@ iot_backend.log
 sync.log
 iot_local.db
 __pycache__/
+
+# ngrok config (no exponer token)
+/.ngrok2/

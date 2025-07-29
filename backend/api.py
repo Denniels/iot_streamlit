@@ -8,10 +8,11 @@ from typing import Dict, Any, List, Optional
 import uvicorn
 from datetime import datetime, timezone
 import asyncio
+import requests
 
 from backend.config import get_logger
 from backend.data_acquisition import DataAcquisition
-from backend.db_writer import SupabaseClient
+from backend.db_writer import LocalPostgresClient
 
 # Configuración de logging
 logger = get_logger(__name__)
@@ -104,7 +105,7 @@ async def root():
 async def health_check():
     """Verificación de salud del sistema"""
     try:
-        db_client = SupabaseClient()
+        db_client = LocalPostgresClient()
         # Probar conexión a base de datos
         devices = db_client.get_devices()
         
@@ -145,7 +146,7 @@ async def get_system_status():
 async def get_devices():
     """Obtener lista de todos los dispositivos detectados"""
     try:
-        db_client = SupabaseClient()
+        db_client = LocalPostgresClient()
         devices = db_client.get_devices()
         
         # Formatear información de dispositivos
@@ -179,7 +180,7 @@ async def get_devices():
 async def get_device_details(device_id: str):
     """Obtener detalles específicos de un dispositivo"""
     try:
-        db_client = SupabaseClient()
+        db_client = LocalPostgresClient()
         devices = db_client.get_devices()
         
         device = next((d for d in devices if d.get('device_id') == device_id), None)
@@ -236,7 +237,7 @@ async def get_latest_data():
 async def get_device_data(device_id: str, limit: int = 100):
     """Obtener datos históricos de un dispositivo específico"""
     try:
-        db_client = SupabaseClient()
+        db_client = LocalPostgresClient()
         data = db_client.get_recent_data(device_id, limit)
         
         return ApiResponse(
@@ -358,7 +359,7 @@ async def collect_data_now():
 async def get_system_logs(limit: int = 50):
     """Obtener logs recientes del sistema"""
     try:
-        db_client = SupabaseClient()
+        db_client = LocalPostgresClient()
         logs = db_client.get_system_events(limit)
         
         return ApiResponse(
@@ -373,6 +374,38 @@ async def get_system_logs(limit: int = 50):
         raise HTTPException(
             status_code=500,
             detail="Error obteniendo logs del sistema"
+        )
+
+@app.get("/ngrok_url", response_model=ApiResponse)
+async def get_ngrok_url():
+    """Devuelve la URL pública actual de ngrok (si está activa)"""
+    try:
+        # ngrok API local por defecto
+        ngrok_api = "http://localhost:4040/api/tunnels"
+        resp = requests.get(ngrok_api, timeout=2)
+        resp.raise_for_status()
+        tunnels = resp.json().get("tunnels", [])
+        public_urls = [t["public_url"] for t in tunnels if t.get("public_url")]
+        if not public_urls:
+            return ApiResponse(
+                success=False,
+                message="No hay túneles ngrok activos",
+                data=None,
+                timestamp=datetime.now(timezone.utc)
+            )
+        return ApiResponse(
+            success=True,
+            message="URL pública de ngrok detectada",
+            data={"ngrok_url": public_urls[0]},
+            timestamp=datetime.now(timezone.utc)
+        )
+    except Exception as e:
+        logger.error(f"Error obteniendo URL de ngrok: {e}")
+        return ApiResponse(
+            success=False,
+            message=f"Error obteniendo URL de ngrok: {e}",
+            data=None,
+            timestamp=datetime.now(timezone.utc)
         )
 
 # Función principal para ejecutar el servidor

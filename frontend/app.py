@@ -2,7 +2,7 @@
 Dashboard principal de Streamlit para el sistema IoT
 """
 import streamlit as st
-from supabase import create_client, Client
+import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -52,12 +52,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Configuración de Supabase
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Configuración de API Jetson (FastAPI expuesta por ngrok)
+st.sidebar.markdown("### 🌐 URL de la API Jetson (ngrok)")
+
+# Intentar obtener la URL pública de ngrok automáticamente si no está en session_state
+if 'api_url' not in st.session_state or not st.session_state['api_url']:
+    try:
+        # Cambia esta URL si el backend está en otra ubicación
+        backend_local = "http://localhost:8000/ngrok_url"
+        resp = requests.get(backend_local, timeout=2)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('success') and data.get('data', {}).get('ngrok_url'):
+                st.session_state['api_url'] = data['data']['ngrok_url']
+    except Exception as e:
+        pass  # No mostrar error si no está disponible
+
+API_URL = st.sidebar.text_input(
+    "URL pública de la API (ej: https://xxxx.ngrok.io)",
+    value=st.session_state.get('api_url', '')
+)
+if API_URL:
+    st.session_state['api_url'] = API_URL
+
 class IoTDashboard:
-    """Dashboard que consulta datos directamente de Supabase"""
+    """Dashboard que consulta datos directamente de la API Jetson (FastAPI)"""
     def __init__(self):
         if 'last_update' not in st.session_state:
             st.session_state.last_update = datetime.now()
@@ -67,35 +87,40 @@ class IoTDashboard:
             st.session_state.selected_device = None
 
     def get_sensor_data(self, limit=500):
+        if not API_URL:
+            st.error("Debes ingresar la URL pública de la API Jetson (ngrok) en la barra lateral.")
+            return None
         try:
-            # Consulta robusta que incluye todos los dispositivos con más registros
-            response = supabase.table("sensor_data_test").select("*").order("timestamp", desc=True).limit(limit).execute()
-            return response.data
+            url = f"{API_URL}/data"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get('data', [])
+            else:
+                st.error(f"❌ Error consultando API: {resp.status_code} {resp.text}")
+                return None
         except Exception as e:
-            st.error(f"❌ Error consultando Supabase: {e}")
-            st.error(f"Detalles del error: {str(e)}")
+            st.error(f"❌ Error consultando API: {e}")
             return None
 
     def get_all_devices(self):
-        """Obtener todos los device_id únicos en Supabase y mostrar ambos tipos aunque no tengan datos recientes"""
+        if not API_URL:
+            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (ngrok)")
+            return []
         try:
-            response = supabase.table("sensor_data_test").select("device_id").execute()
-            devices = set()
-            if response.data:
-                for row in response.data:
-                    if row.get('device_id'):
-                        devices.add(row['device_id'])
-            # Forzar mostrar ambos tipos si existen en la red
-            # USB
-            usb_id = 'arduino_usb_001'
-            ethernet_id = 'arduino_ethernet_192_168_0_110'
-            # Puedes agregar más device_id conocidos aquí si tienes más
-            devices.update([usb_id, ethernet_id])
-            devices = sorted(list(devices))
-            st.sidebar.write(f"🔍 Dispositivos detectados: {len(devices)}")
-            for device in devices:
-                st.sidebar.write(f"  • {device}")
-            return devices
+            url = f"{API_URL}/devices"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                devices = data.get('data', [])
+                device_ids = [d['device_id'] for d in devices if 'device_id' in d]
+                st.sidebar.write(f"🔍 Dispositivos detectados: {len(device_ids)}")
+                for device in device_ids:
+                    st.sidebar.write(f"  • {device}")
+                return device_ids
+            else:
+                st.sidebar.error(f"❌ Error obteniendo dispositivos: {resp.status_code} {resp.text}")
+                return []
         except Exception as e:
             st.sidebar.error(f"❌ Error obteniendo lista de dispositivos: {e}")
             return []
@@ -119,21 +144,24 @@ class IoTDashboard:
                 status_dict[label] = f"Error: {e}"
         return status_dict
 
-    def verify_supabase_connection(self):
-        """Verifica la conexión con Supabase y muestra estadísticas"""
+    def verify_api_connection(self):
+        """Verifica la conexión con la API Jetson y muestra estadísticas"""
+        if not API_URL:
+            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (ngrok)")
+            return False
         try:
-            # Consulta básica para verificar conexión
-            response = supabase.table("sensor_data_test").select("device_id", count="exact").execute()
-            
-            st.sidebar.success("✅ Conexión con Supabase establecida")
-            st.sidebar.write(f"📊 Total de registros: {response.count}")
-            
-            # Obtener estadísticas por dispositivo
-            device_stats = supabase.table("sensor_data_test").select("device_id", count="exact").execute()
-            
-            return True
+            url = f"{API_URL}/health"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                st.sidebar.success("✅ Conexión con API Jetson establecida")
+                st.sidebar.write(f"📊 Dispositivos detectados: {data.get('devices_count', 0)}")
+                return True
+            else:
+                st.sidebar.error(f"❌ Error de conexión con API: {resp.status_code} {resp.text}")
+                return False
         except Exception as e:
-            st.sidebar.error(f"❌ Error de conexión con Supabase: {e}")
+            st.sidebar.error(f"❌ Error de conexión con API: {e}")
             return False
 
     def render_overview(self):
@@ -155,14 +183,14 @@ class IoTDashboard:
             color = "#28a745" if status == "active" else ("#ffc107" if status == "activating" else "#dc3545")
             cols[i].markdown(f"<div style='background:{color};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;'><b>{label}</b><br>{status}</div>", unsafe_allow_html=True)
         
-        # Verificar conexión con Supabase
-        if not self.verify_supabase_connection():
-            st.error("No se puede conectar con Supabase. Verifique la configuración.")
+        # Verificar conexión con API Jetson
+        if not self.verify_api_connection():
+            st.error("No se puede conectar con la API Jetson. Verifique la URL pública de ngrok.")
             return
         
         data = self.get_sensor_data(200)
         if not data:
-            st.error("No se pueden cargar los datos desde Supabase")
+            st.error("No se pueden cargar los datos desde la API Jetson")
             return
         df = pd.DataFrame(data)
         if 'raw_data' in df.columns:
@@ -171,7 +199,7 @@ class IoTDashboard:
             st.info("No hay datos disponibles en Supabase.")
             return
 
-        # Selección de dispositivo (mostrar todos los device_id únicos en Supabase)
+        # Selección de dispositivo (mostrar todos los device_id únicos)
         st.markdown("### 📱 Selecciona un dispositivo para visualizar sus datos")
         device_ids = self.get_all_devices()
         st.info(f"📊 Dispositivos disponibles: {len(device_ids)}")
@@ -184,11 +212,16 @@ class IoTDashboard:
         # Si no hay datos recientes, buscar los últimos datos históricos del dispositivo seleccionado
         df_device = df[df['device_id'] == selected_device]
         if df_device.empty:
-            # Buscar los últimos datos históricos del dispositivo
-            data_hist = supabase.table("sensor_data_test").select("*").eq("device_id", selected_device).order("timestamp", desc=True).limit(50).execute()
-            if data_hist.data:
-                df_device = pd.DataFrame(data_hist.data)
-            else:
+            # Buscar los últimos datos históricos del dispositivo desde la API
+            try:
+                url = f"{API_URL}/data/{selected_device}?limit=50"
+                resp = requests.get(url, timeout=10)
+                if resp.status_code == 200:
+                    data_hist = resp.json().get('data', [])
+                    df_device = pd.DataFrame(data_hist)
+                else:
+                    df_device = pd.DataFrame()
+            except Exception:
                 df_device = pd.DataFrame()
 
         # Mostrar tabla principal filtrada o mensaje si no hay datos
@@ -196,7 +229,7 @@ class IoTDashboard:
         if 'raw_data' in df_device.columns:
             df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if df_device.empty:
-            st.info(f"No hay datos disponibles para {selected_device} en Supabase.")
+            st.info(f"No hay datos disponibles para {selected_device} en la API Jetson.")
         else:
             st.dataframe(df_device, use_container_width=True)
 
@@ -357,12 +390,12 @@ class IoTDashboard:
             from datetime import datetime, timedelta
             cutoff_time = datetime.now() - timedelta(hours=hours)
             
-            response = supabase.table("sensor_data_test").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
+            response = supabase.table("sensor_data_clean").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
             
             # Si no hay datos recientes, buscar los últimos registros del dispositivo
             if not response.data:
                 st.warning(f"⚠️ No hay datos recientes para {device_id}. Buscando últimos registros...")
-                response = supabase.table("sensor_data_test").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
+                response = supabase.table("sensor_data_clean").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
             
             return {"success": True, "data": response.data}
         except Exception as e:

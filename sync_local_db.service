@@ -1,0 +1,15 @@
+[Unit]
+Description=Sincronización de datos IoT a base de datos local PostgreSQL
+After=network.target
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/sync_local_db.py
+Environment="PYTHONUNBUFFERED=1"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

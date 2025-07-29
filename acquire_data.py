@@ -5,7 +5,7 @@ Script de adquisición de datos desde Arduino USB y guardado en PostgreSQL local
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from backend.arduino_detector import ArduinoDetector
 from backend.postgres_client import PostgreSQLClient
 from backend.config import get_logger, setup_logging
@@ -19,20 +19,35 @@ def main():
     # Usamos un mock para la inserción directa en la base local
     class LocalDB:
         def insert_sensor_data(self, data):
+            # Log de los datos recibidos antes de insertar
+            logger.info(f"[INGESTA] Recibido para insertar: {json.dumps(data, default=str)}")
             # Insertar en la tabla sensor_data
             query = """
                 INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data, timestamp, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
+            # Forzar timestamp a UTC ISO8601
+            ts = data.get('timestamp')
+            if ts:
+                try:
+                    from datetime import timezone
+                    if hasattr(ts, 'isoformat'):
+                        ts = ts.astimezone(timezone.utc).isoformat()
+                    elif isinstance(ts, str):
+                        from dateutil.parser import isoparse
+                        ts = isoparse(ts).astimezone(timezone.utc).isoformat()
+                except Exception:
+                    pass
             params = (
                 data.get('device_id'),
                 data.get('sensor_type'),
                 data.get('value'),
                 data.get('unit'),
                 json.dumps(data.get('raw_data')),
-                data.get('timestamp'),
-                datetime.now().isoformat()
+                ts,
+                datetime.now(timezone.utc).isoformat()
             )
+            logger.info(f"[INGESTA] Insertando en base local: {params}")
             db_client.execute_query(query, params)
             logger.info(f"Dato insertado: {data.get('device_id')} {data.get('sensor_type')}={data.get('value')}{data.get('unit')}")
 
@@ -81,6 +96,7 @@ def main():
             # USB
             if usb_ok:
                 data = arduino.read_usb_data()
+                logger.info(f"[USB] Datos crudos recibidos: {json.dumps(data, default=str)}")
                 if data and data.get('message_type') == 'sensor_data':
                     sensors = data.get('sensors', {})
                     for sensor_name, value in sensors.items():
@@ -91,8 +107,9 @@ def main():
                                 'value': float(value) if isinstance(value, (int, float)) else value,
                                 'unit': arduino._get_sensor_unit(sensor_name),
                                 'raw_data': data,
-                                'timestamp': datetime.now().isoformat()
+                                'timestamp': datetime.now(timezone.utc).isoformat()
                             }
+                            logger.info(f"[USB] Insertando sensor_data: {json.dumps(sensor_data, default=str)}")
                             arduino.db_client.insert_sensor_data(sensor_data)
                             print(f"USB {sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
             # Ethernet
@@ -101,6 +118,7 @@ def main():
                     ip = dev['ip_address']
                     port = dev['metadata']['port']
                     eth_data = arduino.read_ethernet_data(ip, port)
+                    logger.info(f"[ETH] Datos crudos recibidos: {json.dumps(eth_data, default=str)}")
                     if eth_data and eth_data.get('message_type') == 'sensor_data':
                         sensors = eth_data.get('sensors', {})
                         for sensor_name, value in sensors.items():
@@ -111,8 +129,9 @@ def main():
                                     'value': float(value) if isinstance(value, (int, float)) else value,
                                     'unit': arduino._get_sensor_unit(sensor_name),
                                     'raw_data': eth_data,
-                                    'timestamp': datetime.now().isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()
                                 }
+                                logger.info(f"[ETH] Insertando sensor_data: {json.dumps(sensor_data, default=str)}")
                                 arduino.db_client.insert_sensor_data(sensor_data)
                                 print(f"ETH {sensor_name}: {value}{arduino._get_sensor_unit(sensor_name)}")
             # Reintentar detección Ethernet cada 60 segundos

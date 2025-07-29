@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import time
 from backend.config import Config, get_logger
-from backend.db_writer import SupabaseClient
+from backend.db_writer import LocalPostgresClient
 
 logger = get_logger(__name__)
 
@@ -75,7 +75,7 @@ class ArduinoDetector:
         self.logger.info("⏳ Lectura periódica USB iniciada (cada 5s, envío dashboard cada 10s)")
     """Detector y comunicador para Arduinos USB y Ethernet"""
     
-    def __init__(self, db_client: SupabaseClient):
+    def __init__(self, db_client: LocalPostgresClient):
         self.db_client = db_client
         self.logger = logger  # Usar el logger del módulo
         self.usb_connection = None
@@ -260,7 +260,7 @@ class ArduinoDetector:
                     data = json.loads(raw_data)
 
                     # Verificar que sea datos de sensores (acepta ambos message_type)
-                    if data.get('message_type') in ('sensor_data', 'sensor_data_test') and 'sensors' in data:
+                    if data.get('message_type') in ('sensor_data_clean',) and 'sensors' in data:
                         # Procesar datos de sensores
                         sensors = data['sensors']
                         device_id = data.get('device_id', 'arduino_usb')
@@ -268,7 +268,7 @@ class ArduinoDetector:
                         # Insertar cada sensor por separado
                         for sensor_name, value in sensors.items():
                             if sensor_name != 'temperature_avg':  # Evitar duplicar el promedio
-                                sensor_data_test = {
+                                sensor_data_clean = {
                                     'device_id': device_id,
                                     'sensor_type': sensor_name,
                                     'value': float(value) if isinstance(value, (int, float)) else value,
@@ -276,7 +276,7 @@ class ArduinoDetector:
                                     'raw_data': data,
                                     'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                                 }
-                                self.db_client.insert_sensor_data(sensor_data_test)
+                                self.db_client.insert_sensor_data(sensor_data_clean)
 
                         logger.debug(f"📊 Datos recibidos: Temp1={sensors.get('temperature_1')}°C, Luz={sensors.get('light_level')}%")
                         return data
@@ -427,7 +427,7 @@ class ArduinoDetector:
                             
                             # Insertar cada sensor por separado
                             for sensor_name, value in data['sensors'].items():
-                                sensor_data_test = {
+                                sensor_data_clean = {
                                     'device_id': device_id,
                                     'sensor_type': sensor_name,
                                     'value': value,
@@ -436,7 +436,7 @@ class ArduinoDetector:
                                     'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                                 }
                                 
-                                self.db_client.insert_sensor_data(sensor_data_test)
+                                self.db_client.insert_sensor_data(sensor_data_clean)
                             
                             return data
                             
@@ -460,7 +460,7 @@ class ArduinoDetector:
                 
                 if data:
                     device_id = f"arduino_eth_{ip}_{port}"
-                    sensor_data_test = {
+                    sensor_data_clean = {
                         'device_id': device_id,
                         'sensor_type': data.get('sensor_type', 'unknown'),
                         'value': data.get('value'),
@@ -469,7 +469,7 @@ class ArduinoDetector:
                         'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                     }
                     
-                    self.db_client.insert_sensor_data(sensor_data_test)
+                    self.db_client.insert_sensor_data(sensor_data_clean)
                     return data
             
             return None
