@@ -165,6 +165,8 @@ class IoTDashboard:
             st.error("No se pueden cargar los datos desde Supabase")
             return
         df = pd.DataFrame(data)
+        if 'raw_data' in df.columns:
+            df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if df.empty:
             st.info("No hay datos disponibles en Supabase.")
             return
@@ -191,6 +193,8 @@ class IoTDashboard:
 
         # Mostrar tabla principal filtrada o mensaje si no hay datos
         st.markdown(f"### Últimos datos de sensores - {selected_device}")
+        if 'raw_data' in df_device.columns:
+            df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if df_device.empty:
             st.info(f"No hay datos disponibles para {selected_device} en Supabase.")
         else:
@@ -381,7 +385,9 @@ class IoTDashboard:
         
         # Convertir a DataFrame
         df = pd.DataFrame(data_points)
-        
+        if 'raw_data' in df.columns:
+            df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
+
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df = df.sort_values('timestamp')
