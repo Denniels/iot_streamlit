@@ -167,7 +167,7 @@ class ModbusScanner:
                                         'register_type': 'holding',
                                         'unit_id': unit_id
                                     },
-                                    'timestamp': datetime.now(timezone.utc).isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                                 }
                                 
                                 data_points.append(data_point)

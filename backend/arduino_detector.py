@@ -246,53 +246,52 @@ class ArduinoDetector:
             else:
                 logger.error("❌ No se pudo reconectar")
                 return None
-        
+
         try:
             # Verificar si hay datos disponibles
             if self.usb_connection.in_waiting > 0:
                 raw_data = self.usb_connection.readline().decode('utf-8').strip()
-                
+
                 if not raw_data:
                     return None
-                
+
                 # Parsear JSON del Arduino
                 try:
                     data = json.loads(raw_data)
-                    
-                    # Verificar que sea datos de sensores
-                    if data.get('message_type') == 'sensor_data' and 'sensors' in data:
+
+                    # Verificar que sea datos de sensores (acepta ambos message_type)
+                    if data.get('message_type') in ('sensor_data', 'sensor_data_test') and 'sensors' in data:
                         # Procesar datos de sensores
                         sensors = data['sensors']
                         device_id = data.get('device_id', 'arduino_usb')
-                        
+
                         # Insertar cada sensor por separado
                         for sensor_name, value in sensors.items():
                             if sensor_name != 'temperature_avg':  # Evitar duplicar el promedio
-                                sensor_data = {
+                                sensor_data_test = {
                                     'device_id': device_id,
                                     'sensor_type': sensor_name,
                                     'value': float(value) if isinstance(value, (int, float)) else value,
                                     'unit': self._get_sensor_unit(sensor_name),
                                     'raw_data': data,
-                                    'timestamp': datetime.now(timezone.utc).isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                                 }
-                                
-                                self.db_client.insert_sensor_data(sensor_data)
-                        
+                                self.db_client.insert_sensor_data(sensor_data_test)
+
                         logger.debug(f"📊 Datos recibidos: Temp1={sensors.get('temperature_1')}°C, Luz={sensors.get('light_level')}%")
                         return data
-                    
+
                     elif data.get('message_type') == 'command_response':
                         # Log de respuestas a comandos
                         logger.debug(f"📝 Respuesta comando: {data.get('command')} -> {data.get('status')}")
                         return data
-                    
+
                 except json.JSONDecodeError as e:
                     logger.warning(f"⚠️ Datos no JSON recibidos: {raw_data[:100]}...")
                     return None
-            
+
             return None
-            
+
         except serial.SerialException as e:
             logger.error(f"❌ Error de conexión serial: {e}")
             # Intentar reconectar
@@ -300,7 +299,7 @@ class ArduinoDetector:
                 self.usb_connection.close()
             self.usb_connection = None
             return None
-            
+
         except Exception as e:
             logger.error(f"❌ Error inesperado leyendo datos USB: {e}")
             return None
@@ -428,16 +427,16 @@ class ArduinoDetector:
                             
                             # Insertar cada sensor por separado
                             for sensor_name, value in data['sensors'].items():
-                                sensor_data = {
+                                sensor_data_test = {
                                     'device_id': device_id,
                                     'sensor_type': sensor_name,
                                     'value': value,
                                     'unit': '°C' if 'temperature' in sensor_name else '',
                                     'raw_data': data,
-                                    'timestamp': datetime.now(timezone.utc).isoformat()
+                                    'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                                 }
                                 
-                                self.db_client.insert_sensor_data(sensor_data)
+                                self.db_client.insert_sensor_data(sensor_data_test)
                             
                             return data
                             
@@ -461,16 +460,16 @@ class ArduinoDetector:
                 
                 if data:
                     device_id = f"arduino_eth_{ip}_{port}"
-                    sensor_data = {
+                    sensor_data_test = {
                         'device_id': device_id,
                         'sensor_type': data.get('sensor_type', 'unknown'),
                         'value': data.get('value'),
                         'unit': data.get('unit', ''),
                         'raw_data': data,
-                        'timestamp': datetime.now(timezone.utc).isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
                     }
                     
-                    self.db_client.insert_sensor_data(sensor_data)
+                    self.db_client.insert_sensor_data(sensor_data_test)
                     return data
             
             return None

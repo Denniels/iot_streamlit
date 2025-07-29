@@ -84,7 +84,7 @@ class PostgreSQLClient:
         """Insertar datos de sensor"""
         try:
             query = """
-            INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data)
+            INSERT INTO sensor_data_test (device_id, sensor_type, value, unit, raw_data)
             VALUES (%(device_id)s, %(sensor_type)s, %(value)s, %(unit)s, %(raw_data)s)
             """
             
@@ -139,7 +139,7 @@ class PostgreSQLClient:
         try:
             if device_id:
                 query = """
-                SELECT * FROM sensor_data 
+                SELECT * FROM sensor_data_test 
                 WHERE device_id = %s 
                 ORDER BY timestamp DESC 
                 LIMIT %s
@@ -147,7 +147,7 @@ class PostgreSQLClient:
                 return self.execute_query(query, (device_id, limit)) or []
             else:
                 query = """
-                SELECT * FROM sensor_data 
+                SELECT * FROM sensor_data_test 
                 ORDER BY timestamp DESC 
                 LIMIT %s
                 """
@@ -178,7 +178,7 @@ class PostgreSQLClient:
             );
 
             -- Tabla para datos de sensores
-            CREATE TABLE IF NOT EXISTS sensor_data (
+            CREATE TABLE IF NOT EXISTS sensor_data_test (
                 id SERIAL PRIMARY KEY,
                 device_id VARCHAR(255) NOT NULL,
                 sensor_type VARCHAR(100) NOT NULL,
@@ -203,8 +203,8 @@ class PostgreSQLClient:
             -- Índices para optimizar consultas
             CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id);
             CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
-            CREATE INDEX IF NOT EXISTS idx_sensor_data_device_id ON sensor_data(device_id);
-            CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp ON sensor_data(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_sensor_data_device_id ON sensor_data_test(device_id);
+            CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp ON sensor_data_test(timestamp);
             CREATE INDEX IF NOT EXISTS idx_system_events_timestamp ON system_events(timestamp);
             CREATE INDEX IF NOT EXISTS idx_system_events_device_id ON system_events(device_id);
             """

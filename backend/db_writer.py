@@ -74,27 +74,36 @@ class SupabaseClient:
         sensor_data_clean = convert_decimal(sensor_data)
         # Convertir timestamp a string ISO si es datetime
         if 'timestamp' in sensor_data_clean:
-            try:
-                if hasattr(sensor_data_clean['timestamp'], 'isoformat'):
-                    sensor_data_clean['timestamp'] = sensor_data_clean['timestamp'].isoformat()
-            except Exception:
-                pass
+            # Forzar timestamp a string ISO8601 (UTC)
+            import dateutil.parser
+            ts = sensor_data_clean['timestamp']
+            if isinstance(ts, (int, float)):
+                # Si es un número, lo convertimos a datetime y luego a ISO
+                # Suponemos que es epoch segundos
+                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                sensor_data_clean['timestamp'] = dt.isoformat()
+            elif hasattr(ts, 'isoformat'):
+                sensor_data_clean['timestamp'] = ts.astimezone(timezone.utc).isoformat()
+            elif isinstance(ts, str):
+                try:
+                    dt = dateutil.parser.isoparse(ts)
+                    sensor_data_clean['timestamp'] = dt.astimezone(timezone.utc).isoformat()
+                except Exception:
+                    # Si no se puede parsear, lo dejamos como string
+                    pass
         # Eliminar el campo created_at si existe
         sensor_data_clean.pop('created_at', None)
 
-        # Registrar el dispositivo si no existe
-        # Concatenar device_id y device_type para unicidad
+        # Registrar el dispositivo si no existe (sin concatenar device_id)
         device_id = sensor_data_clean.get('device_id')
         device_type = sensor_data_clean.get('raw_data', {}).get('device_type') or sensor_data_clean.get('device_type', 'arduino_ethernet')
         if device_id:
-            device_id_concat = f"{device_id}_{device_type}"
-            sensor_data_clean['device_id'] = device_id_concat
             # Verificar si el dispositivo existe en Supabase
-            existing = self.client.table('devices').select('device_id').eq('device_id', device_id_concat).execute()
+            existing = self.client.table('devices').select('device_id').eq('device_id', device_id).execute()
             if not existing.data:
                 # Registrar dispositivo mínimo
                 device_data = {
-                    'device_id': device_id_concat,
+                    'device_id': device_id,
                     'device_type': device_type,
                     'status': 'online',
                     'last_seen': datetime.now().isoformat()
@@ -105,7 +114,7 @@ class SupabaseClient:
             # Logging detallado del objeto antes de insertar
             logger.error(f"Intentando UPSERT en Supabase: {json.dumps(sensor_data_clean, default=str)}")
             # Usar upsert para evitar duplicados por device_id, sensor_type y timestamp
-            result = self.client.table('sensor_data').upsert(
+            result = self.client.table('sensor_data_test').upsert(
                 sensor_data_clean,
                 on_conflict=["device_id", "sensor_type", "timestamp"]
             ).execute()
@@ -174,7 +183,7 @@ class SupabaseClient:
             return []
         
         try:
-            result = self.client.table('sensor_data').select('*').order('timestamp', desc=True).limit(limit).execute()
+            result = self.client.table('sensor_data_test').select('*').order('timestamp', desc=True).limit(limit).execute()
             return result.data if result.data else []
         except Exception as e:
             logger.error(f"Error obteniendo datos de sensores: {e}")

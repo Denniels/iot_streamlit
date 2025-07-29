@@ -67,7 +67,7 @@ class DataAcquisition:
     def collect_all_data(self) -> Dict[str, Any]:
         """Recopilar datos de todos los dispositivos"""
         collected_data = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),  # Siempre UTC ISO8601
             'arduino_usb': None,
             'arduino_ethernet': [],
             'modbus_devices': {},
@@ -215,7 +215,7 @@ class DataAcquisition:
         devices = self.db_client.get_devices()
         
         status = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),  # Siempre UTC ISO8601
             'running': self.running,
             'devices': {
                 'total': len(devices),
@@ -232,6 +232,6 @@ class DataAcquisition:
     def get_latest_data(self) -> Dict[str, Any]:
         """Obtener los datos más recientes"""
         return self.data_cache if self.data_cache else {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),  # Siempre UTC ISO8601
             'message': 'No hay datos disponibles'
         }
