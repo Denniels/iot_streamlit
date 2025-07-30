@@ -54,22 +54,16 @@ st.markdown("""
 
 
 
+
+# --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
 st.sidebar.markdown("### 🌐 URL de la API Jetson (Cloudflare Tunnel)")
-
-
-
-# --- Descubrimiento automático de la URL pública de Cloudflare Tunnel ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
-manual_url = st.sidebar.text_input(
-    "URL pública de Cloudflare Tunnel (ej: https://xxxx.trycloudflare.com)",
-    value=st.session_state.get('api_url', ''),
-    help="Si la detección automática falla, pega aquí la URL pública de Cloudflare Tunnel"
-)
 
-def discover_cf_url(base_url):
+def get_public_cf_url():
+    # Intenta obtener la URL pública desde el backend local
     try:
-        resp = requests.get(f"{base_url}/cf_url", timeout=3)
+        resp = requests.get("http://localhost:8000/cf_url", timeout=3)
         if resp.status_code == 200:
             data = resp.json()
             if data.get('success') and data.get('cf_url'):
@@ -78,25 +72,40 @@ def discover_cf_url(base_url):
         pass
     return None
 
-# Prioridad: manual -> última en session_state -> ninguna
-api_url = None
-if manual_url:
-    api_url = discover_cf_url(manual_url)
-    if api_url:
-        st.session_state['api_url'] = api_url
-    else:
-        st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
-elif 'api_url' in st.session_state and st.session_state['api_url']:
-    api_url = discover_cf_url(st.session_state['api_url'])
-    if api_url:
-        st.session_state['api_url'] = api_url
+# Siempre intenta descubrir la URL pública automáticamente
+auto_url = get_public_cf_url()
 
-# Mostrar la URL pública detectada (si existe)
-API_URL = st.session_state.get('api_url', '')
-if API_URL:
+# Permite input manual solo si la detección automática falla
+manual_url = None
+API_URL = None
+if auto_url:
+    API_URL = auto_url
+    st.session_state['api_url'] = API_URL
     st.sidebar.success(f"URL pública activa: {API_URL}")
 else:
-    st.sidebar.error("No se pudo detectar la URL pública de Cloudflare Tunnel. Ingresa la URL manualmente.")
+    manual_url = st.sidebar.text_input(
+        "URL pública de Cloudflare Tunnel (ej: https://xxxx.trycloudflare.com)",
+        value=st.session_state.get('api_url', ''),
+        help="Si la detección automática falla, pega aquí la URL pública de Cloudflare Tunnel"
+    )
+    if manual_url:
+        # Validar manualmente
+        try:
+            resp = requests.get(f"{manual_url}/cf_url", timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('success') and data.get('cf_url'):
+                    API_URL = data['cf_url']
+                    st.session_state['api_url'] = API_URL
+                    st.sidebar.success(f"URL pública activa: {API_URL}")
+                else:
+                    st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
+            else:
+                st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
+        except Exception:
+            st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
+    else:
+        st.sidebar.error("No se pudo detectar la URL pública de Cloudflare Tunnel. Ingresa la URL manualmente.")
 
 class IoTDashboard:
     """Dashboard que consulta datos directamente de la API Jetson (FastAPI)"""

@@ -62,10 +62,23 @@ def save_cf_tunnel_url(url):
 
 save_cf_tunnel_url(CF_URL)
 
+
+# --- Endpoint que lee la URL pública de Cloudflare Tunnel en tiempo real ---
 @app.get("/cf_url")
 async def get_cf_url():
-    """Devuelve la URL pública del túnel Cloudflare"""
-    return {"success": True, "cf_url": CF_URL}
+    """Devuelve la URL pública actual del túnel Cloudflare leyendo el archivo secrets_tunnel.toml"""
+    try:
+        if os.path.exists(CF_CREDENTIALS_PATH):
+            data = toml.load(CF_CREDENTIALS_PATH)
+            cf_url = data.get('cloudflare', {}).get('url', None)
+            if cf_url:
+                return {"success": True, "cf_url": cf_url}
+            else:
+                return {"success": False, "cf_url": None, "error": "No se encontró la URL en el archivo."}
+        else:
+            return {"success": False, "cf_url": None, "error": "Archivo secrets_tunnel.toml no encontrado."}
+    except Exception as e:
+        return {"success": False, "cf_url": None, "error": str(e)}
 
 
 # Modelos Pydantic para validación de datos
