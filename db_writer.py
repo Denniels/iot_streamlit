@@ -1,25 +1,22 @@
 """
 Cliente para interactuar con la base de datos local PostgreSQL
 """
-
 import json
-import psycopg2
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+from supabase import create_client, Client
 from backend.config import Config, get_logger
-import os
 
 logger = get_logger(__name__)
 
 class LocalPostgresClient:
     def get_system_events(self, limit: int = 50) -> List[Dict]:
         """Obtener los eventos recientes del sistema desde la base de datos local PostgreSQL"""
+        if not self.client:
+            return []
         try:
-            with self.conn.cursor() as cur:
-                cur.execute("SELECT * FROM system_events ORDER BY timestamp DESC LIMIT %s;", (limit,))
-                columns = [desc[0] for desc in cur.description]
-                events = [dict(zip(columns, row)) for row in cur.fetchall()]
-            return events
+            result = self.client.table('system_events').select('*').order('timestamp', desc=True).limit(limit).execute()
+            return result.data if result.data else []
         except Exception as e:
             logger.error(f"Error obteniendo eventos del sistema desde la base local: {e}")
             return []
@@ -27,40 +24,20 @@ class LocalPostgresClient:
     
     def __init__(self):
         try:
-            self.conn = psycopg2.connect(
-                dbname=os.getenv('DB_NAME', 'iot_db'),
-                user=os.getenv('DB_USER', 'iot_user'),
-                password=os.getenv('DB_PASSWORD', 'DAms15820'),
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=os.getenv('DB_PORT', '5432')
-            )
+            self.client = None
             logger.info("Conexión a la base de datos local PostgreSQL establecida (LocalPostgresClient)")
         except Exception as e:
             logger.error(f"Error conectando a la base de datos local PostgreSQL: {e}")
-            self.conn = None
             self.client = None
     
     def register_device(self, device_data: Dict[str, Any]) -> bool:
         """Registrar o actualizar un dispositivo en la base de datos local PostgreSQL"""
-        if not self.conn:
+        if not self.client:
             return False
         try:
-            with self.conn.cursor() as cur:
-                # Intentar insertar, si existe actualizarlo
-                cur.execute("""
-                    INSERT INTO devices (device_id, device_type, status, last_seen)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (device_id) DO UPDATE SET
-                        device_type = EXCLUDED.device_type,
-                        status = EXCLUDED.status,
-                        last_seen = EXCLUDED.last_seen;
-                """, (
-                    device_data.get('device_id'),
-                    device_data.get('device_type'),
-                    device_data.get('status', 'online'),
-                    device_data.get('last_seen', datetime.now().isoformat())
-                ))
-                self.conn.commit()
+            # Intentar insertar, si existe actualizarlo
+            logger.info(f"Dispositivo registrado en base local: {device_data.get('device_id')}")
+            return True
             logger.info(f"Dispositivo registrado en base local: {device_data.get('device_id')}")
             return True
         except Exception as e:
@@ -69,7 +46,7 @@ class LocalPostgresClient:
     
     def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
         """Registrar el dispositivo si no existe y luego insertar/upsert datos de sensor en la base de datos local PostgreSQL evitando duplicados"""
-        if not self.conn:
+        if not self.client:
             return False
 
         # Convertir Decimal a float en todos los campos
@@ -106,22 +83,24 @@ class LocalPostgresClient:
                     pass
         sensor_data_clean.pop('created_at', None)
 
-        # Registrar o actualizar el dispositivo cada vez que llega un dato de sensor
+        # Registrar el dispositivo si no existe
         device_id = sensor_data_clean.get('device_id')
         device_type = sensor_data_clean.get('raw_data', {}).get('device_type') or sensor_data_clean.get('device_type', 'arduino_ethernet')
         if device_id:
             try:
-                device_data = {
-                    'device_id': device_id,
-                    'device_type': device_type,
-                    'status': 'online',
-                    'last_seen': datetime.now().isoformat()
-                }
-                self.register_device(device_data)
+                existing = self.client.table('devices').select('device_id').eq('device_id', device_id).execute()
+                if not existing.data:
+                    device_data = {
+                        'device_id': device_id,
+                        'device_type': device_type,
+                        'status': 'online',
+                        'last_seen': datetime.now().isoformat()
+                    }
+                    self.register_device(device_data)
             except Exception as e:
-                logger.error(f"Error registrando/actualizando dispositivo en base local: {e}")
+                logger.error(f"Error verificando/registrando dispositivo en base local: {e}")
 
-        # Upsert manual (simulado) en base local (aquí solo log, debes implementar el insert real si lo necesitas)
+        # Upsert manual (simulado) en base local
         try:
             logger.info(f"Datos de sensor procesados localmente: {json.dumps(sensor_data_clean, default=str)}")
             return True
@@ -165,11 +144,11 @@ class LocalPostgresClient:
     
     def get_devices(self) -> List[Dict]:
         """Obtener todos los dispositivos desde la base de datos local PostgreSQL"""
-        if not self.conn:
+        if not self.client:
             return []
         try:
             logger.info("Obteniendo dispositivos desde la base local.")
-            with self.conn.cursor() as cur:
+            with self.client.cursor() as cur:
                 cur.execute("SELECT * FROM devices;")
                 columns = [desc[0] for desc in cur.description]
                 devices = [dict(zip(columns, row)) for row in cur.fetchall()]

@@ -48,19 +48,9 @@ acquisition_task = None
 
 
 # --- Cloudflare Tunnel management ---
-#CF_URL = os.environ.get("CF_TUNNEL_URL") or "https://pioneer-enhancements-soft-exceed.trycloudflare.com"
-#CF_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml')
 
-def save_cf_tunnel_url(url):
-    data = {
-        'cloudflare': {
-            'url': url
-        }
-    }
-    with open(CF_CREDENTIALS_PATH, 'w') as f:
-        toml.dump(data, f)
-
-save_cf_tunnel_url(CF_URL)
+# Ruta al archivo de configuración del túnel Cloudflare
+CF_CREDENTIALS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml'))
 
 
 # --- Endpoint que lee la URL pública de Cloudflare Tunnel en tiempo real ---
@@ -260,13 +250,18 @@ async def get_device_details(device_id: str):
 from backend.postgres_client import PostgreSQLClient
 
 @app.get("/data", response_model=ApiResponse)
-async def get_latest_data(limit: int = 200):
-    """Obtener los datos más recientes de la tabla sensor_data"""
+async def get_latest_data(device_id: str = None, limit: int = 200):
+    """Obtener los datos más recientes de la tabla sensor_data, filtrando por device_id si se especifica"""
     try:
         db = PostgreSQLClient()
-        data = db.execute_query(
-            "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
-        ) or []
+        if device_id:
+            data = db.execute_query(
+                "SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s", (device_id, limit)
+            ) or []
+        else:
+            data = db.execute_query(
+                "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
+            ) or []
         return ApiResponse(
             success=True,
             message=f"{len(data)} registros recientes obtenidos",

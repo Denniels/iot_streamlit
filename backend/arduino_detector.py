@@ -260,7 +260,7 @@ class ArduinoDetector:
                     data = json.loads(raw_data)
 
                     # Verificar que sea datos de sensores (acepta ambos message_type)
-                    if data.get('message_type') in ('sensor_data_clean',) and 'sensors' in data:
+                    if data.get('message_type') in ('sensor_data', 'sensor_data_clean',) and 'sensors' in data:
                         # Procesar datos de sensores
                         sensors = data['sensors']
                         device_id = data.get('device_id', 'arduino_usb')
