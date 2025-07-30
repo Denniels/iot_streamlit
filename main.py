@@ -39,7 +39,6 @@ class IoTSystemMain:
         try:
             # 1. Verificar configuración
             logger.info("Verificando configuración...")
-            required_config = ['supabase_url', 'supabase_key']
             for key in required_config:
                 if not IOT_CONFIG.get(key):
                     logger.error(f"Configuración faltante: {key}")

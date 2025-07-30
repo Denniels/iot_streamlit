@@ -12,10 +12,6 @@ load_dotenv('.env.local')
 class Config:
     """Configuración central de la aplicación"""
     
-    # Supabase
-    SUPABASE_URL = os.getenv('SUPABASE_URL')
-    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-    SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
     
     # API
     API_HOST = os.getenv('API_HOST', '0.0.0.0')
