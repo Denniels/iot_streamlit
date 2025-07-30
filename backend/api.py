@@ -48,8 +48,8 @@ acquisition_task = None
 
 
 # --- Cloudflare Tunnel management ---
-CF_URL = os.environ.get("CF_TUNNEL_URL") or "https://pioneer-enhancements-soft-exceed.trycloudflare.com"
-CF_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml')
+#CF_URL = os.environ.get("CF_TUNNEL_URL") or "https://pioneer-enhancements-soft-exceed.trycloudflare.com"
+#CF_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml')
 
 def save_cf_tunnel_url(url):
     data = {

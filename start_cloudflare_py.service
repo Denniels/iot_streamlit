@@ -6,7 +6,9 @@ After=network.target
 Type=simple
 User=daniel
 WorkingDirectory=/home/daniel/repos/iot_streamlit
-ExecStart=/usr/bin/python3 /home/daniel/repos/iot_streamlit/start_cloudflare.py
+Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/.iot_streamlit"
+Environment="PATH=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/start_cloudflare.py
 Restart=always
 RestartSec=5
 
