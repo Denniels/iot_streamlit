@@ -282,128 +282,6 @@ class IoTDashboard:
         else:
             st.info("No hay variables numéricas para graficar.")
 
-    def run(self):
-        self.render_overview()
-        st.markdown("---")
-        st.markdown(
-            "🌐 **IoT Streamlit Dashboard** | "
-            f"Última actualización: {datetime.now().strftime('%H:%M:%S')}")
-
-    def run(self):
-        self.render_overview()
-        st.markdown("---")
-        st.markdown(
-            "🌐 **IoT Streamlit Dashboard** | "
-            f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
-        
-        with col2:
-            online_count = len([d for d in devices if d.get('status') == 'online'])
-            st.metric(
-                "✅ Dispositivos Online",
-                online_count,
-                delta=f"{online_count}/{total_devices}"
-            )
-        
-        with col3:
-            acquisition_status = "🟢 Activa" if status.get("running") else "🟡 Inactiva"
-            st.metric(
-                "📊 Adquisición",
-                acquisition_status,
-                delta=None
-            )
-        
-        with col4:
-            last_data = status.get("last_data")
-            if last_data:
-                last_update = datetime.fromisoformat(last_data.replace("Z", "+00:00"))
-                delta_time = datetime.now() - last_update.replace(tzinfo=None)
-                st.metric(
-                    "🕐 Última Actualización",
-                    f"{delta_time.seconds//60}m {delta_time.seconds%60}s",
-                    delta="hace"
-                )
-            else:
-                st.metric("🕐 Última Actualización", "Sin datos", delta=None)
-        
-        # Gráfico de estado de dispositivos
-        if devices:
-            st.markdown("### 📊 Estado de Dispositivos")
-            
-            # Preparar datos para gráfico
-            status_counts = {}
-            device_types = {}
-            
-            for device in devices:
-                status = device.get('status', 'unknown')
-                device_type = device.get('device_type', 'unknown')
-                
-                status_counts[status] = status_counts.get(status, 0) + 1
-                device_types[device_type] = device_types.get(device_type, 0) + 1
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Gráfico de estado
-                status_df = pd.DataFrame(list(status_counts.items()), columns=['Estado', 'Cantidad'])
-                fig_status = px.pie(
-                    status_df, 
-                    values='Cantidad', 
-                    names='Estado',
-                    title="Estado de Dispositivos",
-                    color_discrete_map={
-                        'online': '#28a745',
-                        'offline': '#dc3545',
-                        'error': '#ffc107'
-                    }
-                )
-                st.plotly_chart(fig_status, use_container_width=True)
-            
-            with col2:
-                # Gráfico de tipos
-                types_df = pd.DataFrame(list(device_types.items()), columns=['Tipo', 'Cantidad'])
-                fig_types = px.bar(
-                    types_df,
-                    x='Tipo',
-                    y='Cantidad',
-                    title="Dispositivos por Tipo",
-                    color='Cantidad',
-                    color_continuous_scale='viridis'
-                )
-                st.plotly_chart(fig_types, use_container_width=True)
-        
-        # Tabla de dispositivos
-        st.markdown("### 📱 Lista de Dispositivos")
-        
-        if devices:
-            df = pd.DataFrame(devices)
-            
-            # Formatear tabla
-            df_display = df[['device_id', 'device_type', 'ip_address', 'status', 'last_seen']].copy()
-            df_display.columns = ['ID Dispositivo', 'Tipo', 'IP', 'Estado', 'Última Conexión']
-            
-            # Colorear estados
-            def color_status(val):
-                if val == 'online':
-                    return 'background-color: #d4edda; color: #155724'
-                elif val == 'offline':
-                    return 'background-color: #f8d7da; color: #721c24'
-                elif val == 'error':
-                    return 'background-color: #fff3cd; color: #856404'
-                return ''
-            
-            styled_df = df_display.style.applymap(color_status, subset=['Estado'])
-            st.dataframe(styled_df, use_container_width=True)
-            
-            # Seleccionar dispositivo para detalles
-            st.markdown("### 🔍 Detalles de Dispositivo")
-            device_ids = [d['device_id'] for d in devices]
-            selected = st.selectbox("Seleccionar dispositivo:", device_ids)
-            
-            if selected:
-                self.render_device_details(selected)
-        else:
-            st.info("No hay dispositivos detectados. Usa el botón 'Escanear Red' para buscar dispositivos.")
-    
     def get_device_data(self, device_id, hours=24):
         """Obtener datos específicos de un dispositivo desde la API Jetson"""
         try:
@@ -418,40 +296,31 @@ class IoTDashboard:
         except Exception as e:
             st.error(f"❌ Error consultando datos del dispositivo {device_id}: {e}")
             return {"success": False, "data": []}
-    
+
     def render_device_details(self, device_id: str):
         """Renderizar detalles de un dispositivo específico"""
         device_data = self.get_device_data(device_id, 50)
-        
         if not device_data or not device_data.get("success"):
             st.error(f"No se pueden cargar datos del dispositivo {device_id}")
             return
-        
         data_points = device_data.get("data", [])
-        
         if not data_points:
             st.info(f"No hay datos históricos para {device_id}")
             return
-        
         # Convertir a DataFrame
         df = pd.DataFrame(data_points)
         if 'raw_data' in df.columns:
             df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
-
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df = df.sort_values('timestamp')
-            
             # Gráfico temporal
             if 'sensor_data' in df.columns:
                 st.markdown(f"#### 📈 Datos de {device_id}")
-                
-                # Intentar parsear datos del sensor
                 try:
                     # Expandir JSON de sensor_data
                     sensor_df = pd.json_normalize(df['sensor_data'].apply(json.loads))
                     sensor_df['timestamp'] = df['timestamp'].values
-                    
                     # Crear gráfico con múltiples series
                     fig = make_subplots(
                         rows=len(sensor_df.columns) - 1,
@@ -459,7 +328,6 @@ class IoTDashboard:
                         shared_xaxes=True,
                         subplot_titles=[col for col in sensor_df.columns if col != 'timestamp']
                     )
-                    
                     for i, col in enumerate([c for c in sensor_df.columns if c != 'timestamp'], 1):
                         fig.add_trace(
                             go.Scatter(
@@ -470,10 +338,8 @@ class IoTDashboard:
                             ),
                             row=i, col=1
                         )
-                    
                     fig.update_layout(height=400 * len([c for c in sensor_df.columns if c != 'timestamp']))
                     st.plotly_chart(fig, use_container_width=True)
-                    
                 except Exception as e:
                     st.warning(f"No se pueden visualizar los datos del sensor: {e}")
                     # Mostrar datos raw
@@ -481,13 +347,10 @@ class IoTDashboard:
             else:
                 # Mostrar tabla de datos
                 st.dataframe(df, use_container_width=True)
-    
-    
+
     def run(self):
         """Ejecutar la aplicación principal"""
-        # Solo vista general
         self.render_overview()
-        # Footer
         st.markdown("---")
         st.markdown(
             "🌐 **IoT Streamlit Dashboard** | "
