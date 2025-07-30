@@ -46,76 +46,27 @@ app.add_middleware(
 data_acquisition = DataAcquisition()
 acquisition_task = None
 
-# --- LocalTunnel management ---
 
-lt_process = None
-lt_url = None
-lt_public_ip = None
-lt_lock = threading.Lock()
+# --- Cloudflare Tunnel management ---
+CF_URL = os.environ.get("CF_TUNNEL_URL") or "https://pioneer-enhancements-soft-exceed.trycloudflare.com"
+CF_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml')
 
-# Ruta del archivo donde se guardarán las credenciales del túnel
-LT_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml')
-
-def save_tunnel_credentials(url, public_ip):
-    """Guarda la URL y la IP pública en un archivo .toml"""
+def save_cf_tunnel_url(url):
     data = {
-        'localtunnel': {
-            'url': url,
-            'password': public_ip
+        'cloudflare': {
+            'url': url
         }
     }
-    with open(LT_CREDENTIALS_PATH, 'w') as f:
+    with open(CF_CREDENTIALS_PATH, 'w') as f:
         toml.dump(data, f)
 
+save_cf_tunnel_url(CF_URL)
 
-def get_public_ip():
-    """Obtiene la IP pública de la Jetson usando un servicio externo"""
-    try:
-        resp = requests.get("https://api.ipify.org?format=text", timeout=5)
-        if resp.status_code == 200:
-            return resp.text.strip()
-    except Exception as e:
-        logger.error(f"No se pudo obtener la IP pública: {e}")
-    return None
+@app.get("/cf_url")
+async def get_cf_url():
+    """Devuelve la URL pública del túnel Cloudflare"""
+    return {"success": True, "cf_url": CF_URL}
 
-def start_localtunnel(port=8000):
-    """Lanza LocalTunnel como proceso hijo y obtiene la URL pública y la IP pública"""
-    global lt_process, lt_url, lt_public_ip
-    if lt_process is not None and lt_process.poll() is None:
-        return  # Ya está corriendo
-    # Lanzar localtunnel
-    lt_process = subprocess.Popen(
-        ["lt", "--port", str(port)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    # Leer la URL pública de la salida estándar
-    def read_url():
-        global lt_url, lt_public_ip
-        for line in lt_process.stdout:
-            if "https://" in line:
-                url = line.strip()
-                # Extraer solo la URL si viene con prefijo
-                if "your url is:" in url:
-                    url = url.split("your url is:")[-1].strip()
-                with lt_lock:
-                    lt_url = url
-                    # Obtener la IP pública en el momento de levantar el túnel
-                    lt_public_ip = get_public_ip()
-                    # Guardar en archivo .toml
-                    if lt_url and lt_public_ip:
-                        save_tunnel_credentials(lt_url, lt_public_ip)
-                break
-    threading.Thread(target=read_url, daemon=True).start()
-
-def get_localtunnel_url():
-    with lt_lock:
-        return lt_url
-
-def get_localtunnel_password():
-    with lt_lock:
-        return lt_public_ip
 
 # Modelos Pydantic para validación de datos
 class DeviceStatus(BaseModel):
@@ -142,15 +93,12 @@ class ApiResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    """Inicializar el sistema al arrancar la API y LocalTunnel"""
+    """Inicializar el sistema al arrancar la API"""
     logger.info("Iniciando API REST IoT Backend...")
     try:
         # Inicializar detectores de dispositivos (comentado para pruebas de integridad)
         # data_acquisition.initialize_devices()
         logger.info("[TEST] Inicialización de dispositivos deshabilitada para prueba de API.")
-        # Lanzar LocalTunnel automáticamente
-        start_localtunnel(port=8000)
-        logger.info("LocalTunnel lanzado automáticamente en el backend.")
     except Exception as e:
         logger.error(f"Error en inicialización: {e}")
 
@@ -294,19 +242,24 @@ async def get_device_details(device_id: str):
             detail="Error obteniendo detalles del dispositivo"
         )
 
+
+# Nuevo endpoint /data: retorna lista de registros recientes de sensor_data
+from backend.postgres_client import PostgreSQLClient
+
 @app.get("/data", response_model=ApiResponse)
-async def get_latest_data():
-    """Obtener los datos más recientes de todos los dispositivos"""
+async def get_latest_data(limit: int = 200):
+    """Obtener los datos más recientes de la tabla sensor_data"""
     try:
-        data = data_acquisition.get_latest_data()
-        
+        db = PostgreSQLClient()
+        data = db.execute_query(
+            "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
+        ) or []
         return ApiResponse(
             success=True,
-            message="Datos más recientes obtenidos",
+            message=f"{len(data)} registros recientes obtenidos",
             data=data,
             timestamp=datetime.now()
         )
-        
     except Exception as e:
         logger.error(f"Error obteniendo datos recientes: {e}")
         raise HTTPException(
@@ -458,33 +411,7 @@ async def get_system_logs(limit: int = 50):
         )
 
 
-# --- Nuevo endpoint para LocalTunnel ---
-@app.get("/lt_url", response_model=ApiResponse)
-async def get_lt_url():
-    """Devuelve la URL pública actual de LocalTunnel y la contraseña (IP pública)"""
-    url = get_localtunnel_url()
-    password = get_localtunnel_password()
-    if url and password:
-        return ApiResponse(
-            success=True,
-            message="URL pública de LocalTunnel y contraseña detectadas",
-            data={"lt_url": url, "password": password},
-            timestamp=datetime.now(timezone.utc)
-        )
-    elif url:
-        return ApiResponse(
-            success=True,
-            message="URL pública de LocalTunnel detectada, pero no se pudo obtener la IP pública",
-            data={"lt_url": url, "password": None},
-            timestamp=datetime.now(timezone.utc)
-        )
-    else:
-        return ApiResponse(
-            success=False,
-            message="No hay túnel LocalTunnel activo",
-            data=None,
-            timestamp=datetime.now(timezone.utc)
-        )
+
 
 # Función principal para ejecutar el servidor
 def run_api_server():

@@ -1,4 +1,4 @@
-# Archivo de credenciales de LocalTunnel
+# Archivo de credenciales de cloudflare
 secrets_tunnel.toml
 # Ignorar archivos de logs y bases de datos locales
 *.log
