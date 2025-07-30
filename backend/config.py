@@ -11,6 +11,7 @@ load_dotenv('.env.local')
 
 class Config:
     """Configuración central de la aplicación"""
+    """Configuración central de la aplicación"""
     
     
     # API
@@ -31,6 +32,10 @@ class Config:
     
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+    ACQUIRE_LOG = os.path.join(LOG_DIR, 'acquire_data.log')
+    BACKEND_LOG = os.path.join(LOG_DIR, 'iot_backend.log')
+    SYNC_LOG = os.path.join(LOG_DIR, 'sync_local_db.log')
 
     # Base de datos
     DB_HOST = os.getenv('DB_HOST', 'localhost')
@@ -39,13 +44,15 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'iot_user')
     DB_PASSWORD = os.getenv('DB_PASSWORD', 'iot_password')
 
-def setup_logging():
-    """Configurar logging para toda la aplicación"""
+def setup_logging(logfile: str = None):
+    """Configurar logging para toda la aplicación, permitiendo especificar el archivo de log"""
+    if logfile is None:
+        logfile = Config.BACKEND_LOG
     logging.basicConfig(
         level=getattr(logging, Config.LOG_LEVEL),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('iot_backend.log'),
+            logging.FileHandler(logfile),
             logging.StreamHandler()
         ]
     )

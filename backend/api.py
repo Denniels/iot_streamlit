@@ -16,11 +16,12 @@ import time
 import toml
 import os
 
-from backend.config import get_logger
+from backend.config import Config, get_logger, setup_logging
 from backend.data_acquisition import DataAcquisition
 from backend.db_writer import LocalPostgresClient
 
 # Configuración de logging
+setup_logging(Config.BACKEND_LOG)
 logger = get_logger(__name__)
 
 # Crear aplicación FastAPI

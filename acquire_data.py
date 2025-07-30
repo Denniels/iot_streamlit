@@ -10,7 +10,8 @@ from backend.arduino_detector import ArduinoDetector
 from backend.postgres_client import PostgreSQLClient
 from backend.config import get_logger, setup_logging
 
-setup_logging()
+from backend.config import Config
+setup_logging(Config.ACQUIRE_LOG)
 logger = get_logger(__name__)
 
 
@@ -65,3 +66,6 @@ def main():
         logger.error(f"Error en la adquisición: {e}")
         print(f"Error en la adquisición: {e}")
         sys.exit(1)
+        
+if __name__ == "__main__":
+    main()

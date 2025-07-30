@@ -7,9 +7,9 @@ import time
 from datetime import datetime
 from backend.postgres_client import PostgreSQLClient
 from backend.db_writer import LocalPostgresClient
-from backend.config import get_logger, setup_logging
+from backend.config import Config, get_logger, setup_logging
 
-setup_logging()
+setup_logging(Config.SYNC_LOG)
 logger = get_logger(__name__)
 
 def get_latest_local_timestamp(local_client):

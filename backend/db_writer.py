@@ -146,11 +146,16 @@ class LocalPostgresClient:
     
     def update_device_status(self, device_id: str, status: str) -> bool:
         """Actualizar estado de dispositivo en la base de datos local PostgreSQL"""
-        if not self.client:
+        if not self.conn:
             return False
         try:
+            with self.conn.cursor() as cur:
+                query = """
+                    UPDATE devices SET status = %s, last_seen = %s WHERE device_id = %s;
+                """
+                cur.execute(query, (status, datetime.now(timezone.utc).isoformat(), device_id))
+                self.conn.commit()
             logger.info(f"Estado del dispositivo {device_id} actualizado a {status} en base local.")
-            return True
             return True
         except Exception as e:
             logger.error(f"Error actualizando estado del dispositivo {device_id} en base local: {e}")
@@ -159,19 +164,23 @@ class LocalPostgresClient:
     def log_system_event(self, event_type: str, device_id: Optional[str] = None, 
                         message: str = "", metadata: Optional[Dict] = None) -> bool:
         """Registrar evento del sistema en la base de datos local PostgreSQL"""
-        if not self.client:
+        if not self.conn:
             return False
         try:
-            event_data = {
-                'event_type': event_type,
-                'message': message,
-                'timestamp': datetime.now(timezone.utc).isoformat()
-            }
-            if device_id:
-                event_data['device_id'] = device_id
-            if metadata:
-                event_data['metadata'] = metadata
-            result = self.client.table('system_events').insert(event_data).execute()
+            with self.conn.cursor() as cur:
+                query = """
+                    INSERT INTO system_events (event_type, device_id, message, metadata, timestamp)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                cur.execute(query, (
+                    event_type,
+                    device_id,
+                    message,
+                    json.dumps(metadata) if metadata else None,
+                    datetime.now(timezone.utc).isoformat()
+                ))
+                self.conn.commit()
+            logger.info(f"Evento del sistema registrado: {event_type} - {device_id} - {message}")
             return True
         except Exception as e:
             logger.error(f"Error registrando evento del sistema en base local: {e}")
