@@ -1,3 +1,5 @@
+# Archivo de credenciales de LocalTunnel
+secrets_tunnel.toml
 # Ignorar archivos de logs y bases de datos locales
 *.log
 *.db
