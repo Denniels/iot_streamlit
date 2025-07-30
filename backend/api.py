@@ -1,29 +1,3 @@
-
-# Endpoint para obtener la URL pública de ngrok (para el frontend en Streamlit Cloud)
-from fastapi.responses import JSONResponse
-
-@app.get("/ngrok_url")
-async def get_ngrok_url():
-    """Devuelve la URL pública de ngrok (https) para que el frontend en la nube pueda acceder a la API Jetson"""
-    try:
-        resp = requests.get("http://localhost:4040/api/tunnels", timeout=2)
-        tunnels = resp.json().get("tunnels", [])
-        for tunnel in tunnels:
-            if tunnel.get("proto") == "https":
-                # Devolver solo la URL pública https
-                return JSONResponse(content={
-                    "success": True,
-                    "ngrok_url": tunnel["public_url"]
-                })
-        return JSONResponse(content={
-            "success": False,
-            "error": "No HTTPS tunnel found"
-        })
-    except Exception as e:
-        return JSONResponse(content={
-            "success": False,
-            "error": str(e)
-        })
 """
 API REST con FastAPI para el backend IoT
 """
@@ -35,6 +9,9 @@ import uvicorn
 from datetime import datetime, timezone
 import asyncio
 import requests
+import subprocess
+import threading
+import time
 
 from backend.config import get_logger
 from backend.data_acquisition import DataAcquisition
@@ -61,9 +38,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Instancia global del sistema de adquisición
 data_acquisition = DataAcquisition()
 acquisition_task = None
+
+# --- LocalTunnel management ---
+lt_process = None
+lt_url = None
+lt_lock = threading.Lock()
+
+def start_localtunnel(port=8000):
+    """Lanza LocalTunnel como proceso hijo y obtiene la URL pública"""
+    global lt_process, lt_url
+    if lt_process is not None and lt_process.poll() is None:
+        return  # Ya está corriendo
+    # Lanzar localtunnel
+    lt_process = subprocess.Popen(
+        ["lt", "--port", str(port)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    # Leer la URL pública de la salida estándar
+    def read_url():
+        global lt_url
+        for line in lt_process.stdout:
+            if "https://" in line:
+                with lt_lock:
+                    lt_url = line.strip()
+                break
+    threading.Thread(target=read_url, daemon=True).start()
+
+def get_localtunnel_url():
+    with lt_lock:
+        return lt_url
 
 # Modelos Pydantic para validación de datos
 class DeviceStatus(BaseModel):
@@ -87,15 +96,18 @@ class ApiResponse(BaseModel):
     timestamp: datetime
 
 # Eventos de inicio y cierre
+
 @app.on_event("startup")
 async def startup_event():
-    """Inicializar el sistema al arrancar la API"""
+    """Inicializar el sistema al arrancar la API y LocalTunnel"""
     logger.info("Iniciando API REST IoT Backend...")
-    
     try:
         # Inicializar detectores de dispositivos (comentado para pruebas de integridad)
         # data_acquisition.initialize_devices()
         logger.info("[TEST] Inicialización de dispositivos deshabilitada para prueba de API.")
+        # Lanzar LocalTunnel automáticamente
+        start_localtunnel(port=8000)
+        logger.info("LocalTunnel lanzado automáticamente en el backend.")
     except Exception as e:
         logger.error(f"Error en inicialización: {e}")
 
@@ -402,34 +414,23 @@ async def get_system_logs(limit: int = 50):
             detail="Error obteniendo logs del sistema"
         )
 
-@app.get("/ngrok_url", response_model=ApiResponse)
-async def get_ngrok_url():
-    """Devuelve la URL pública actual de ngrok (si está activa)"""
-    try:
-        # ngrok API local por defecto
-        ngrok_api = "http://localhost:4040/api/tunnels"
-        resp = requests.get(ngrok_api, timeout=2)
-        resp.raise_for_status()
-        tunnels = resp.json().get("tunnels", [])
-        public_urls = [t["public_url"] for t in tunnels if t.get("public_url")]
-        if not public_urls:
-            return ApiResponse(
-                success=False,
-                message="No hay túneles ngrok activos",
-                data=None,
-                timestamp=datetime.now(timezone.utc)
-            )
+
+# --- Nuevo endpoint para LocalTunnel ---
+@app.get("/lt_url", response_model=ApiResponse)
+async def get_lt_url():
+    """Devuelve la URL pública actual de LocalTunnel (si está activa)"""
+    url = get_localtunnel_url()
+    if url:
         return ApiResponse(
             success=True,
-            message="URL pública de ngrok detectada",
-            data={"ngrok_url": public_urls[0]},
+            message="URL pública de LocalTunnel detectada",
+            data={"lt_url": url},
             timestamp=datetime.now(timezone.utc)
         )
-    except Exception as e:
-        logger.error(f"Error obteniendo URL de ngrok: {e}")
+    else:
         return ApiResponse(
             success=False,
-            message=f"Error obteniendo URL de ngrok: {e}",
+            message="No hay túnel LocalTunnel activo",
             data=None,
             timestamp=datetime.now(timezone.utc)
         )

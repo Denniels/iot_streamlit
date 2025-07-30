@@ -53,27 +53,27 @@ st.markdown("""
 
 
 
-# Configuración de API Jetson (FastAPI expuesta por ngrok)
-st.sidebar.markdown("### 🌐 URL de la API Jetson (ngrok)")
 
-# --- Descubrimiento automático de la URL pública de ngrok ---
-# El usuario puede ingresar manualmente la última URL pública de ngrok si la detección automática falla
+# Configuración de API Jetson (FastAPI expuesta por LocalTunnel)
+st.sidebar.markdown("### 🌐 URL de la API Jetson (LocalTunnel)")
+
+
+# --- Descubrimiento automático de la URL pública de LocalTunnel ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 manual_url = st.sidebar.text_input(
-    "URL pública de ngrok (ej: https://xxxx-xx-xx-xx.ngrok.io)",
+    "URL pública de LocalTunnel (ej: https://xxxx.loca.lt)",
     value=st.session_state.get('api_url', ''),
-    help="Si la detección automática falla, pega aquí la URL pública de ngrok"
+    help="Si la detección automática falla, pega aquí la URL pública de LocalTunnel"
 )
 
-# Intentar descubrir la URL pública automáticamente usando la última conocida o la ingresada manualmente
-def discover_ngrok_url(base_url):
+def discover_lt_url(base_url):
     try:
-        resp = requests.get(f"{base_url}/ngrok_url", timeout=3)
+        resp = requests.get(f"{base_url}/lt_url", timeout=3)
         if resp.status_code == 200:
             data = resp.json()
-            if data.get('success') and data.get('ngrok_url'):
-                return data['ngrok_url']
+            if data.get('success') and data.get('lt_url'):
+                return data['lt_url']
     except Exception:
         pass
     return None
@@ -81,13 +81,13 @@ def discover_ngrok_url(base_url):
 # Prioridad: manual -> última en session_state -> ninguna
 api_url = None
 if manual_url:
-    api_url = discover_ngrok_url(manual_url)
+    api_url = discover_lt_url(manual_url)
     if api_url:
         st.session_state['api_url'] = api_url
     else:
         st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
 elif 'api_url' in st.session_state and st.session_state['api_url']:
-    api_url = discover_ngrok_url(st.session_state['api_url'])
+    api_url = discover_lt_url(st.session_state['api_url'])
     if api_url:
         st.session_state['api_url'] = api_url
 
@@ -96,7 +96,7 @@ API_URL = st.session_state.get('api_url', '')
 if API_URL:
     st.sidebar.success(f"URL pública activa: {API_URL}")
 else:
-    st.sidebar.error("No se pudo detectar la URL pública de ngrok. Ingresa la URL manualmente.")
+    st.sidebar.error("No se pudo detectar la URL pública de LocalTunnel. Ingresa la URL manualmente.")
 
 class IoTDashboard:
     """Dashboard que consulta datos directamente de la API Jetson (FastAPI)"""
@@ -110,7 +110,7 @@ class IoTDashboard:
 
     def get_sensor_data(self, limit=500):
         if not API_URL:
-            st.error("Debes ingresar la URL pública de la API Jetson (ngrok) en la barra lateral.")
+            st.error("Debes ingresar la URL pública de la API Jetson (LocalTunnel) en la barra lateral.")
             return None
         try:
             url = f"{API_URL}/data"
@@ -127,7 +127,7 @@ class IoTDashboard:
 
     def get_all_devices(self):
         if not API_URL:
-            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (ngrok)")
+            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (LocalTunnel)")
             return []
         try:
             url = f"{API_URL}/devices"
@@ -168,7 +168,7 @@ class IoTDashboard:
     def verify_api_connection(self):
         """Verifica la conexión con la API Jetson y muestra estadísticas"""
         if not API_URL:
-            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (ngrok)")
+            st.sidebar.error("Debes ingresar la URL pública de la API Jetson (LocalTunnel)")
             return False
         try:
             url = f"{API_URL}/health"
