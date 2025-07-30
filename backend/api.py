@@ -1,3 +1,29 @@
+
+# Endpoint para obtener la URL pública de ngrok (para el frontend en Streamlit Cloud)
+from fastapi.responses import JSONResponse
+
+@app.get("/ngrok_url")
+async def get_ngrok_url():
+    """Devuelve la URL pública de ngrok (https) para que el frontend en la nube pueda acceder a la API Jetson"""
+    try:
+        resp = requests.get("http://localhost:4040/api/tunnels", timeout=2)
+        tunnels = resp.json().get("tunnels", [])
+        for tunnel in tunnels:
+            if tunnel.get("proto") == "https":
+                # Devolver solo la URL pública https
+                return JSONResponse(content={
+                    "success": True,
+                    "ngrok_url": tunnel["public_url"]
+                })
+        return JSONResponse(content={
+            "success": False,
+            "error": "No HTTPS tunnel found"
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "success": False,
+            "error": str(e)
+        })
 """
 API REST con FastAPI para el backend IoT
 """

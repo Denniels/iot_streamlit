@@ -56,25 +56,47 @@ st.markdown("""
 # Configuración de API Jetson (FastAPI expuesta por ngrok)
 st.sidebar.markdown("### 🌐 URL de la API Jetson (ngrok)")
 
-# Intentar obtener la URL pública de ngrok automáticamente si no está en session_state
-if 'api_url' not in st.session_state or not st.session_state['api_url']:
+# --- Descubrimiento automático de la URL pública de ngrok ---
+# El usuario puede ingresar manualmente la última URL pública de ngrok si la detección automática falla
+st.sidebar.markdown("---")
+st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
+manual_url = st.sidebar.text_input(
+    "URL pública de ngrok (ej: https://xxxx-xx-xx-xx.ngrok.io)",
+    value=st.session_state.get('api_url', ''),
+    help="Si la detección automática falla, pega aquí la URL pública de ngrok"
+)
+
+# Intentar descubrir la URL pública automáticamente usando la última conocida o la ingresada manualmente
+def discover_ngrok_url(base_url):
     try:
-        # Cambia esta URL si el backend está en otra ubicación
-        backend_local = "http://localhost:8000/ngrok_url"
-        resp = requests.get(backend_local, timeout=2)
+        resp = requests.get(f"{base_url}/ngrok_url", timeout=3)
         if resp.status_code == 200:
             data = resp.json()
-            if data.get('success') and data.get('data', {}).get('ngrok_url'):
-                st.session_state['api_url'] = data['data']['ngrok_url']
-    except Exception as e:
-        pass  # No mostrar error si no está disponible
+            if data.get('success') and data.get('ngrok_url'):
+                return data['ngrok_url']
+    except Exception:
+        pass
+    return None
 
-API_URL = st.sidebar.text_input(
-    "URL pública de la API (ej: https://xxxx.ngrok.io)",
-    value=st.session_state.get('api_url', '')
-)
+# Prioridad: manual -> última en session_state -> ninguna
+api_url = None
+if manual_url:
+    api_url = discover_ngrok_url(manual_url)
+    if api_url:
+        st.session_state['api_url'] = api_url
+    else:
+        st.sidebar.warning("No se pudo validar la URL pública ingresada. Verifica que el backend esté accesible.")
+elif 'api_url' in st.session_state and st.session_state['api_url']:
+    api_url = discover_ngrok_url(st.session_state['api_url'])
+    if api_url:
+        st.session_state['api_url'] = api_url
+
+# Mostrar la URL pública detectada (si existe)
+API_URL = st.session_state.get('api_url', '')
 if API_URL:
-    st.session_state['api_url'] = API_URL
+    st.sidebar.success(f"URL pública activa: {API_URL}")
+else:
+    st.sidebar.error("No se pudo detectar la URL pública de ngrok. Ingresa la URL manualmente.")
 
 class IoTDashboard:
     """Dashboard que consulta datos directamente de la API Jetson (FastAPI)"""
@@ -125,12 +147,11 @@ class IoTDashboard:
             st.sidebar.error(f"❌ Error obteniendo lista de dispositivos: {e}")
             return []
     def get_service_status(self):
-        """Obtiene el estado de los servicios systemd relevantes y los muestra en el dashboard"""
+        """Obtiene el estado de los servicios systemd relevantes y los muestra en el dashboard (sin Supabase)"""
         import subprocess
         services = [
             ('acquire_data.service', 'Adquisición USB'),
-            ('backend_api.service', 'API Backend'),
-            ('sync_to_supabase.service', 'Sync Supabase')
+            ('backend_api.service', 'API Backend')
         ]
         status_dict = {}
         for svc, label in services:
@@ -170,9 +191,9 @@ class IoTDashboard:
 <div style='text-align: center;'>
 <b>🔄 Pipeline IoT End-to-End</b><br>
 <span style='font-size: 1.1em;'>
-🟦 <b>Arduino</b> &rarr; 🖥️ <b>Jetson Nano (PostgreSQL)</b> &rarr; ☁️ <b>Supabase Cloud</b> &rarr; 📊 <b>Streamlit Dashboard</b>
+🟦 <b>Arduino</b> &rarr; 🖥️ <b>Jetson Nano (PostgreSQL)</b> &rarr; 📊 <b>Streamlit Dashboard</b>
 </span><br>
-<i>Captura &rarr; Almacenamiento local &rarr; Sincronización cloud &rarr; Visualización en tiempo real</i>
+<i>Captura &rarr; Almacenamiento local &rarr; Visualización en tiempo real</i>
 </div>
 """, unsafe_allow_html=True)
         # Estado de servicios systemd
@@ -196,7 +217,7 @@ class IoTDashboard:
         if 'raw_data' in df.columns:
             df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if df.empty:
-            st.info("No hay datos disponibles en Supabase.")
+            st.info("No hay datos disponibles en la API Jetson.")
             return
 
         # Selección de dispositivo (mostrar todos los device_id únicos)
@@ -384,20 +405,16 @@ class IoTDashboard:
             st.info("No hay dispositivos detectados. Usa el botón 'Escanear Red' para buscar dispositivos.")
     
     def get_device_data(self, device_id, hours=24):
-        """Obtener datos específicos de un dispositivo con fallback para datos históricos"""
+        """Obtener datos específicos de un dispositivo desde la API Jetson"""
         try:
-            # Primero buscar datos recientes
-            from datetime import datetime, timedelta
-            cutoff_time = datetime.now() - timedelta(hours=hours)
-            
-            response = supabase.table("sensor_data_clean").select("*").eq("device_id", device_id).gte("timestamp", cutoff_time.isoformat()).order("timestamp", desc=True).limit(500).execute()
-            
-            # Si no hay datos recientes, buscar los últimos registros del dispositivo
-            if not response.data:
-                st.warning(f"⚠️ No hay datos recientes para {device_id}. Buscando últimos registros...")
-                response = supabase.table("sensor_data_clean").select("*").eq("device_id", device_id).order("timestamp", desc=True).limit(100).execute()
-            
-            return {"success": True, "data": response.data}
+            url = f"{API_URL}/data/{device_id}?hours={hours}"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json().get('data', [])
+                return {"success": True, "data": data}
+            else:
+                st.error(f"❌ Error consultando datos del dispositivo {device_id}: {resp.status_code} {resp.text}")
+                return {"success": False, "data": []}
         except Exception as e:
             st.error(f"❌ Error consultando datos del dispositivo {device_id}: {e}")
             return {"success": False, "data": []}
