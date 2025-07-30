@@ -12,6 +12,20 @@ import os
 logger = get_logger(__name__)
 
 class LocalPostgresClient:
+
+    def get_recent_data(self, device_id: str, limit: int = 100) -> List[Dict]:
+        """Obtener los datos más recientes de un dispositivo desde la base de datos local PostgreSQL"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+            return data
+        except Exception as e:
+            logger.error(f"Error obteniendo datos recientes de {device_id} desde base local: {e}")
+            return []
     def get_system_events(self, limit: int = 50) -> List[Dict]:
         """Obtener los eventos recientes del sistema desde la base de datos local PostgreSQL"""
         try:
