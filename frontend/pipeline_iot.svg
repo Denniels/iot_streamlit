@@ -5,7 +5,7 @@
     <circle cx="105" cy="105" r="18" fill="#FF9900"/>
     <rect x="170" y="75" width="110" height="60" rx="12" fill="white" stroke="#FF9900" stroke-width="4"/>
     <rect x="190" y="95" width="70" height="30" rx="6" fill="#FF9900" opacity="0.2"/>
-    <text x="115" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
+    <text x="115" y="180" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
     <text x="115" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
   </g>
   <!-- Flecha 1 (corta, delgada y centrada) -->
@@ -14,7 +14,7 @@
   <g>
     <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
     <path d="M390 110 Q420 60 450 110 Q420 160 390 110" fill="#FF9900" opacity="0.2"/>
-    <text x="420" y="185" font-size="30" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
+    <text x="420" y="180" font-size="30" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
     <text x="420" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
   </g>
   <!-- Flecha 2 (corta, delgada y centrada) -->
