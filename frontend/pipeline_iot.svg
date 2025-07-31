@@ -8,8 +8,8 @@
     <text x="115" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
     <text x="115" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
   </g>
-  <!-- Flecha 1 (centrada, sin tapar íconos) -->
-  <polyline points="235,110 305,110" stroke="#FF9900" stroke-width="7" marker-end="url(#arrowhead)"/>
+  <!-- Flecha 1 (corta, delgada y centrada) -->
+  <polyline points="285,110 340,110" stroke="#FF9900" stroke-width="4" marker-end="url(#arrowhead)"/>
   <!-- Transform: Procesamiento (desplazado a la derecha) -->
   <g>
     <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
@@ -17,8 +17,8 @@
     <text x="420" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
     <text x="420" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
   </g>
-  <!-- Flecha 2 (centrada, sin tapar íconos) -->
-  <polyline points="480,110 545,110" stroke="#FF9900" stroke-width="7" marker-end="url(#arrowhead)"/>
+  <!-- Flecha 2 (corta, delgada y centrada) -->
+  <polyline points="480,110 535,110" stroke="#FF9900" stroke-width="4" marker-end="url(#arrowhead)"/>
   <!-- Load: Dashboard/Nube (desplazado a la derecha) -->
   <g>
     <ellipse cx="660" cy="110" rx="60" ry="45" fill="white" stroke="#FF9900" stroke-width="4"/>
