@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import time
 from streamlit_autorefresh import st_autorefresh
 
+
 # Configuración de página
 st_autorefresh(interval=30 * 1000, key="data_refresh")
 st.set_page_config(
@@ -19,6 +20,19 @@ st.set_page_config(
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded"
+)
+
+# Banner de estado de desarrollo
+st.markdown(
+    '''
+    <div style="background-color:#fff3cd; border-left:6px solid #ff9800; padding:1em; margin-bottom:1em; display:flex; align-items:center;">
+        <span style="font-size:2em; margin-right:0.5em;">🚧</span>
+        <span style="font-size:1.2em; color:#856404;">
+            <b>¡Atención!</b> Esta aplicación aún se encuentra <b>en desarrollo</b>.
+        </span>
+    </div>
+    ''',
+    unsafe_allow_html=True
 )
 
 # CSS personalizado
