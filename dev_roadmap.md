@@ -31,8 +31,12 @@
 ### 3. Automatización de Servicios en Jetson Nano [PRIORIDAD 3]
 - [ ] Configurar los servicios para que se inicien automáticamente al encender la Jetson Nano.
 - [ ] Detener los servicios correctamente al apagar la Jetson.
+- [ ] Asegurar que la URL pública del backend (Cloudflare Tunnel) se envíe y detecte correctamente en el frontend tras cada reinicio, evitando la necesidad de editar manualmente la URL en el archivo `app.py`.
+    - [ ] Diagnosticar por qué la detección automática no funciona en el primer arranque (posible causa: el frontend está en Streamlit Cloud y el backend en Jetson, revisar sincronización y timing de publicación de la URL).
+    - [ ] Implementar mecanismo robusto para que el frontend reciba siempre la URL pública actualizada tras cada reinicio.
 - [ ] Crear un script o servicio que reinicie la Jetson Nano una vez al mes por seguridad.
 - [ ] Reiniciar todos los servicios tras el reinicio mensual.
+
 ### 4. Visualización y Control de Dispositivos
 - [ ] Mostrar ambos dispositivos (USB y Ethernet) en el frontend, con su estado y cantidad de registros.
 - [ ] Revisar y ajustar la cantidad de registros mostrados por dispositivo (paginación o límite configurable).
