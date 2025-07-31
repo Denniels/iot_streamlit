@@ -288,12 +288,54 @@ class IoTDashboard:
             else:
                 st.metric("Última actualización", "Sin datos")
 
+        # --- Filtro de rango temporal ---
+        st.markdown("### ⏳ Filtro de rango temporal")
+        rango_opciones = [
+            "Tiempo real (últimos 10 min)",
+            "Hoy",
+            "Semana",
+            "Mes",
+            "Año",
+            "Personalizado"
+        ]
+        rango_seleccionado = st.selectbox("Selecciona el rango de tiempo a visualizar:", rango_opciones, key="rango_temporal")
+        df_device['timestamp'] = pd.to_datetime(df_device['timestamp'])
+        ahora = pd.Timestamp.now(tz=df_device['timestamp'].dt.tz if df_device['timestamp'].dt.tz is not None else None)
+        if rango_seleccionado == "Tiempo real (últimos 10 min)":
+            inicio = ahora - pd.Timedelta(minutes=10)
+            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
+        elif rango_seleccionado == "Hoy":
+            inicio = ahora.normalize()
+            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
+        elif rango_seleccionado == "Semana":
+            inicio = ahora - pd.Timedelta(days=7)
+            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
+        elif rango_seleccionado == "Mes":
+            inicio = ahora - pd.Timedelta(days=30)
+            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
+        elif rango_seleccionado == "Año":
+            inicio = ahora - pd.Timedelta(days=365)
+            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
+        elif rango_seleccionado == "Personalizado":
+            min_fecha = df_device['timestamp'].min()
+            max_fecha = df_device['timestamp'].max()
+            rango_slider = st.slider(
+                "Selecciona el rango de fechas:",
+                min_value=min_fecha,
+                max_value=max_fecha,
+                value=(min_fecha, max_fecha),
+                format="YYYY-MM-DD HH:mm"
+            )
+            df_device_filtrado = df_device[(df_device['timestamp'] >= rango_slider[0]) & (df_device['timestamp'] <= rango_slider[1])]
+        else:
+            df_device_filtrado = df_device.copy()
+
         # Visualización de variables mejorada
         st.markdown("### 📈 Gráficos de variables")
-        if not df_device.empty and 'sensor_type' in df_device.columns and 'value' in df_device.columns:
-            sensor_types = df_device['sensor_type'].unique().tolist()
+        if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns and 'value' in df_device_filtrado.columns:
+            sensor_types = df_device_filtrado['sensor_type'].unique().tolist()
             for sensor in sensor_types:
-                df_sensor = df_device[df_device['sensor_type'] == sensor].copy()
+                df_sensor = df_device_filtrado[df_device_filtrado['sensor_type'] == sensor].copy()
                 if 'temp' in sensor.lower():
                     # Clasificar registros por rango
                     def temp_rango(val):
