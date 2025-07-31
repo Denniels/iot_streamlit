@@ -6,15 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 
+
 import uvicorn
 from datetime import datetime, timezone
 import asyncio
 import requests
-import subprocess
 import threading
 import time
 import toml
 import os
+
+# Importar función de estado de servicios
+from backend.service_status import get_services_status
 
 from backend.config import Config, get_logger, setup_logging
 from backend.data_acquisition import DataAcquisition
@@ -118,6 +121,17 @@ async def shutdown_event():
     data_acquisition.stop_acquisition()
 
 # Endpoints principales
+
+# --- Nuevo endpoint: Estado de los servicios systemd ---
+@app.get("/service_status")
+async def service_status():
+    """Devuelve el estado de los servicios systemd relevantes para el dashboard"""
+    try:
+        status = get_services_status()
+        return {"success": True, "services": status}
+    except Exception as e:
+        logger.error(f"Error obteniendo estado de servicios: {e}")
+        return {"success": False, "error": str(e)}
 @app.get("/", response_model=ApiResponse)
 async def root():
     """Endpoint raíz con información de la API"""

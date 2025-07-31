@@ -157,38 +157,26 @@ class IoTDashboard:
             st.sidebar.error(f"❌ Error obteniendo lista de dispositivos: {e}")
             return []
     def get_service_status(self):
-        """Obtiene el estado de los servicios systemd relevantes y los muestra en el dashboard (sin Supabase)"""
-        import subprocess
-        services = [
-            ('acquire_data.service', 'Adquisición de Datos'),
-            ('backend_api.service', 'API Backend')
-        ]
-        status_dict = {}
-        for svc, label in services:
-            try:
-                result = subprocess.run([
-                    'systemctl', 'is-active', svc
-                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                status = result.stdout.strip()
-                # Mapear a semáforo
-                if status == 'active':
-                    semaforo = ('🟢', 'Verde', '#28a745')
-                elif status in ('activating', 'reloading', 'deactivating'):  # reiniciando o transitorio
-                    semaforo = ('🟡', 'Amarillo', '#ffc107')
-                elif status == 'failed':
-                    semaforo = ('🔴', 'Rojo', '#dc3545')
+        """Consulta el endpoint /service_status del backend para obtener el estado de los servicios."""
+        if not API_URL:
+            st.error("Debes ingresar la URL pública de la API Jetson (Cloudflare Tunnel) en la barra lateral.")
+            return {}
+        try:
+            url = f"{API_URL}/service_status"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('success') and 'services' in data:
+                    return data['services']
                 else:
-                    semaforo = ('🔴', 'Rojo', '#dc3545')
-                status_dict[label] = {
-                    'status': status,
-                    'semaforo': semaforo
-                }
-            except Exception as e:
-                status_dict[label] = {
-                    'status': f"Error: {e}",
-                    'semaforo': ('❓', 'Desconocido', '#6c757d')
-                }
-        return status_dict
+                    st.error(f"❌ Error consultando estado de servicios: {data.get('error', 'Respuesta inválida')}")
+                    return {}
+            else:
+                st.error(f"❌ Error consultando estado de servicios: {resp.status_code} {resp.text}")
+                return {}
+        except Exception as e:
+            st.error(f"❌ Error consultando estado de servicios: {e}")
+            return {}
 
     def verify_api_connection(self):
         """Verifica la conexión con la API Jetson y muestra estadísticas"""
