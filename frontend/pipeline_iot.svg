@@ -9,7 +9,7 @@
     <text x="115" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
   </g>
   <!-- Flecha 1 (corta, delgada y centrada) -->
-  <polyline points="285,110 360,110" stroke="#FF9900" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline points="285,110 355,110" stroke="#FF9900" stroke-width="3" marker-end="url(#arrowhead)"/>
   <!-- Transform: Procesamiento (desplazado a la derecha) -->
   <g>
     <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
