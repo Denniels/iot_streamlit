@@ -212,19 +212,21 @@ class IoTDashboard:
         # Estado de servicios systemd
         st.markdown("## 🛠️ Estado de Servicios")
         status_dict = self.get_service_status()
-        cols = st.columns(len(status_dict))
-        for i, (label, info) in enumerate(status_dict.items()):
-            emoji, color_name, color_hex = info['semaforo']
-            status_text = info['status']
-            cols[i].markdown(f"""
-                <div style='background:{color_hex};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;display:flex;flex-direction:column;align-items:center;'>
-                    <span style='font-size:2em;'>{emoji}</span>
-                    <b>{label}</b><br>
-                    <span style='font-size:1.1em;'>{color_name}</span>
-                    <span style='font-size:0.9em;'>{status_text}</span>
-                </div>
-            """, unsafe_allow_html=True)
-        
+        if not status_dict:
+            st.warning("No se pudo obtener el estado de los servicios o el endpoint no está disponible.")
+        else:
+            cols = st.columns(len(status_dict))
+            for i, (label, info) in enumerate(status_dict.items()):
+                emoji, color_name, color_hex = info['semaforo']
+                status_text = info['status']
+                cols[i].markdown(f"""
+                    <div style='background:{color_hex};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;display:flex;flex-direction:column;align-items:center;'>
+                        <span style='font-size:2em;'>{emoji}</span>
+                        <b>{label}</b><br>
+                        <span style='font-size:1.1em;'>{color_name}</span>
+                        <span style='font-size:0.9em;'>{status_text}</span>
+                    </div>
+                """, unsafe_allow_html=True)
         # Verificar conexión con API Jetson
         if not self.verify_api_connection():
             st.error("No se puede conectar con la API Jetson. Verifique la URL pública de Cloudflare Tunnel.")
