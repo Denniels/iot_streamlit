@@ -14,7 +14,7 @@
   <g>
     <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
     <path d="M390 110 Q420 60 450 110 Q420 160 390 110" fill="#FF9900" opacity="0.2"/>
-    <text x="420" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
+    <text x="420" y="185" font-size="34" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
     <text x="420" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
   </g>
   <!-- Flecha 2 (corta, delgada y centrada) -->
@@ -25,7 +25,7 @@
     <rect x="630" y="90" width="60" height="35" rx="7" fill="#FF9900" opacity="0.2"/>
     <polyline points="660,65 660,90" stroke="#FF9900" stroke-width="4"/>
     <polygon points="650,75 660,55 670,75" fill="#FF9900"/>
-    <text x="660" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Visualiza</text>
+    <text x="660" y="185" font-size="34" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Visualiza</text>
     <text x="660" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Dashboard & Nube</text>
   </g>
   <!-- Definición de flecha -->
