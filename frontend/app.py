@@ -200,15 +200,8 @@ class IoTDashboard:
 
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
-        st.markdown("""
-<div style='text-align: center;'>
-<b>🔄 Pipeline IoT End-to-End</b><br>
-<span style='font-size: 1.1em;'>
-🟦 <b>Arduino</b> &rarr; 🖥️ <b>Jetson Nano (PostgreSQL)</b> &rarr; 📊 <b>Streamlit Dashboard</b>
-</span><br>
-<i>Captura &rarr; Almacenamiento local &rarr; Visualización en tiempo real</i>
-</div>
-""", unsafe_allow_html=True)
+        st.markdown("<b>🔄 Pipeline IoT End-to-End</b>", unsafe_allow_html=True)
+        st.image("frontend/pipeline_iot.svg", use_column_width=True, caption="Captura → Procesa → Visualiza")
         # Estado de servicios systemd
         st.markdown("## 🛠️ Estado de Servicios")
         status_dict = self.get_service_status()
