@@ -63,7 +63,7 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
 # Usar la última URL pública conocida (puedes poner aquí la última URL conocida o dejarlo vacío para forzar la detección)
-DEFAULT_CF_URL = "https://spas-her-tooth-ft.trycloudflare.com"
+DEFAULT_CF_URL = "https://assumes-indicate-navigation-basic.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
