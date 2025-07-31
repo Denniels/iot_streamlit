@@ -160,7 +160,7 @@ class IoTDashboard:
         """Obtiene el estado de los servicios systemd relevantes y los muestra en el dashboard (sin Supabase)"""
         import subprocess
         services = [
-            ('acquire_data.service', 'Adquisición USB'),
+            ('acquire_data.service', 'Adquisición de Datos'),
             ('backend_api.service', 'API Backend')
         ]
         status_dict = {}
@@ -170,9 +170,24 @@ class IoTDashboard:
                     'systemctl', 'is-active', svc
                 ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 status = result.stdout.strip()
-                status_dict[label] = status
+                # Mapear a semáforo
+                if status == 'active':
+                    semaforo = ('🟢', 'Verde', '#28a745')
+                elif status in ('activating', 'reloading', 'deactivating'):  # reiniciando o transitorio
+                    semaforo = ('🟡', 'Amarillo', '#ffc107')
+                elif status == 'failed':
+                    semaforo = ('🔴', 'Rojo', '#dc3545')
+                else:
+                    semaforo = ('🔴', 'Rojo', '#dc3545')
+                status_dict[label] = {
+                    'status': status,
+                    'semaforo': semaforo
+                }
             except Exception as e:
-                status_dict[label] = f"Error: {e}"
+                status_dict[label] = {
+                    'status': f"Error: {e}",
+                    'semaforo': ('❓', 'Desconocido', '#6c757d')
+                }
         return status_dict
 
     def verify_api_connection(self):
@@ -210,9 +225,17 @@ class IoTDashboard:
         st.markdown("## 🛠️ Estado de Servicios")
         status_dict = self.get_service_status()
         cols = st.columns(len(status_dict))
-        for i, (label, status) in enumerate(status_dict.items()):
-            color = "#28a745" if status == "active" else ("#ffc107" if status == "activating" else "#dc3545")
-            cols[i].markdown(f"<div style='background:{color};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;'><b>{label}</b><br>{status}</div>", unsafe_allow_html=True)
+        for i, (label, info) in enumerate(status_dict.items()):
+            emoji, color_name, color_hex = info['semaforo']
+            status_text = info['status']
+            cols[i].markdown(f"""
+                <div style='background:{color_hex};padding:0.5rem;border-radius:0.5rem;text-align:center;color:white;display:flex;flex-direction:column;align-items:center;'>
+                    <span style='font-size:2em;'>{emoji}</span>
+                    <b>{label}</b><br>
+                    <span style='font-size:1.1em;'>{color_name}</span>
+                    <span style='font-size:0.9em;'>{status_text}</span>
+                </div>
+            """, unsafe_allow_html=True)
         
         # Verificar conexión con API Jetson
         if not self.verify_api_connection():
