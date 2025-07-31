@@ -8,25 +8,25 @@
     <text x="115" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
     <text x="115" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
   </g>
-  <!-- Flecha 1 -->
-  <polyline points="300,110 400,110" stroke="#FF9900" stroke-width="8" marker-end="url(#arrowhead)"/>
-  <!-- Transform: Procesamiento -->
+  <!-- Flecha 1 (más corta y separada) -->
+  <polyline points="270,110 350,110" stroke="#FF9900" stroke-width="7" marker-end="url(#arrowhead)"/>
+  <!-- Transform: Procesamiento (desplazado a la derecha) -->
   <g>
-    <ellipse cx="520" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
-    <path d="M490 110 Q520 60 550 110 Q520 160 490 110" fill="#FF9900" opacity="0.2"/>
-    <text x="520" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
-    <text x="520" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
+    <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <path d="M390 110 Q420 60 450 110 Q420 160 390 110" fill="#FF9900" opacity="0.2"/>
+    <text x="420" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
+    <text x="420" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
   </g>
-  <!-- Flecha 2 -->
-  <polyline points="580,110 680,110" stroke="#FF9900" stroke-width="8" marker-end="url(#arrowhead)"/>
-  <!-- Load: Dashboard/Nube -->
+  <!-- Flecha 2 (más corta y separada) -->
+  <polyline points="480,110 560,110" stroke="#FF9900" stroke-width="7" marker-end="url(#arrowhead)"/>
+  <!-- Load: Dashboard/Nube (desplazado a la derecha) -->
   <g>
-    <ellipse cx="800" cy="110" rx="60" ry="45" fill="white" stroke="#FF9900" stroke-width="4"/>
-    <rect x="770" y="90" width="60" height="35" rx="7" fill="#FF9900" opacity="0.2"/>
-    <polyline points="800,65 800,90" stroke="#FF9900" stroke-width="4"/>
-    <polygon points="790,75 800,55 810,75" fill="#FF9900"/>
-    <text x="800" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Visualiza</text>
-    <text x="800" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Dashboard & Nube</text>
+    <ellipse cx="660" cy="110" rx="60" ry="45" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <rect x="630" y="90" width="60" height="35" rx="7" fill="#FF9900" opacity="0.2"/>
+    <polyline points="660,65 660,90" stroke="#FF9900" stroke-width="4"/>
+    <polygon points="650,75 660,55 670,75" fill="#FF9900"/>
+    <text x="660" y="185" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Visualiza</text>
+    <text x="660" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Dashboard & Nube</text>
   </g>
   <!-- Definición de flecha -->
   <defs>
