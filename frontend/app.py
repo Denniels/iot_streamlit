@@ -288,20 +288,65 @@ class IoTDashboard:
             else:
                 st.metric("Última actualización", "Sin datos")
 
-        # Visualización de variables
+        # Visualización de variables mejorada
         st.markdown("### 📈 Gráficos de variables")
         if not df_device.empty and 'sensor_type' in df_device.columns and 'value' in df_device.columns:
             sensor_types = df_device['sensor_type'].unique().tolist()
             for sensor in sensor_types:
                 df_sensor = df_device[df_device['sensor_type'] == sensor]
-                fig = px.line(
-                    df_sensor,
-                    x='timestamp',
-                    y='value',
-                    title=f"{sensor} - {selected_device}",
-                    markers=True
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                if 'temp' in sensor.lower():
+                    # Clasificar registros por rango
+                    def temp_rango(val):
+                        if val <= 22:
+                            return 'Bajo'
+                        elif val <= 50:
+                            return 'Medio'
+                        else:
+                            return 'Alto'
+                    df_sensor['rango'] = df_sensor['value'].apply(temp_rango)
+                    # Agrupar por fecha y rango
+                    df_sensor['hora'] = pd.to_datetime(df_sensor['timestamp']).dt.floor('H')
+                    area_data = df_sensor.groupby(['hora', 'rango']).size().unstack(fill_value=0)
+                    # Área apilada
+                    fig_area = go.Figure()
+                    colores = {'Bajo': 'blue', 'Medio': 'yellow', 'Alto': 'red'}
+                    for rango in ['Bajo', 'Medio', 'Alto']:
+                        if rango in area_data:
+                            fig_area.add_trace(go.Scatter(
+                                x=area_data.index,
+                                y=area_data[rango],
+                                mode='lines',
+                                stackgroup='one',
+                                name=rango,
+                                line=dict(width=0.5, color=colores[rango]),
+                                fillcolor=colores[rango]
+                            ))
+                    fig_area.update_layout(title=f"Evolución registros temperatura - {sensor}", xaxis_title="Hora", yaxis_title="Cantidad", legend_title="Rango")
+                    st.plotly_chart(fig_area, use_container_width=True)
+                    # Pie chart
+                    pie_counts = df_sensor['rango'].value_counts().reindex(['Bajo','Medio','Alto'], fill_value=0)
+                    fig_pie = px.pie(values=pie_counts.values, names=pie_counts.index, color=pie_counts.index,
+                        color_discrete_map={'Bajo':'blue','Medio':'yellow','Alto':'red'},
+                        title=f"Distribución de registros por rango de temperatura - {sensor}")
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                elif 'ldr' in sensor.lower() or 'luz' in sensor.lower():
+                    # Gráfico de barras para LDR
+                    df_sensor['hora'] = pd.to_datetime(df_sensor['timestamp']).dt.floor('H')
+                    bar_data = df_sensor.groupby('hora')['value'].mean().reset_index()
+                    fig_bar = px.bar(bar_data, x='hora', y='value',
+                        title=f"Nivel de iluminación promedio por hora - {sensor}",
+                        labels={'value':'Nivel de luz','hora':'Hora'}, color_discrete_sequence=['#FFD700'])
+                    st.plotly_chart(fig_bar, use_container_width=True)
+                else:
+                    # Gráfico de línea simple para otros sensores
+                    fig = px.line(
+                        df_sensor,
+                        x='timestamp',
+                        y='value',
+                        title=f"{sensor} - {selected_device}",
+                        markers=True
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No hay variables numéricas para graficar.")
 

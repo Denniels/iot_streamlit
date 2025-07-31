@@ -11,13 +11,12 @@
 5. **Mejoras de usabilidad, mantenimiento y documentación**
 
 
-
 ### 1. Automatización de URL Pública (Cloudflare Tunnel) [PRIORIDAD 1]
-- [x] Automatizar la carga de la URL pública del backend en el frontend, leyendo el valor de `secrets_tunnel.toml`. <!-- 2025-07-31 Denniels: Implementado y validado -->
-- [x] Detectar automáticamente si la URL cambia tras reiniciar el servicio y actualizarla en el frontend. <!-- 2025-07-31 Denniels: Implementado y validado -->
-- [x] El frontend debe esperar a que la URL esté disponible antes de intentar conectar. <!-- 2025-07-31 Denniels: Implementado y validado -->
-- [x] El usuario no debe ingresar la URL manualmente nunca más. <!-- 2025-07-31 Denniels: Implementado y validado -->
-- [x] Documentar el flujo de actualización automática de la URL. <!-- 2025-07-31 Denniels: Implementado y validado -->
+- [ ] Automatizar la carga de la URL pública del backend en el frontend, leyendo el valor de `secrets_tunnel.toml`.
+- [ ] Detectar automáticamente si la URL cambia tras reiniciar el servicio y actualizarla en el frontend.
+- [ ] El frontend debe esperar a que la URL esté disponible antes de intentar conectar.
+- [ ] El usuario no debe ingresar la URL manualmente nunca más.
+- [ ] Documentar el flujo de actualización automática de la URL.
 
 ### 2. Visualización y Monitoreo de Servicios tipo Semáforo [PRIORIDAD 2]
 - [ ] Cambiar el nombre del estado "Adquisición USB" a "Adquisición de Datos" en el frontend.

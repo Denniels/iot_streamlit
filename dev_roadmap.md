@@ -12,19 +12,20 @@
 
 
 ### 1. Automatización de URL Pública (Cloudflare Tunnel) [PRIORIDAD 1]
-- [ ] Automatizar la carga de la URL pública del backend en el frontend, leyendo el valor de `secrets_tunnel.toml`.
-- [ ] Detectar automáticamente si la URL cambia tras reiniciar el servicio y actualizarla en el frontend.
-- [ ] El frontend debe esperar a que la URL esté disponible antes de intentar conectar.
-- [ ] El usuario no debe ingresar la URL manualmente nunca más.
-- [ ] Documentar el flujo de actualización automática de la URL.
+- [x] Automatizar la carga de la URL pública del backend en el frontend, leyendo el valor de `secrets_tunnel.toml`. _(31/07/2025, GitHub Copilot)_
+- [x] Detectar automáticamente si la URL cambia tras reiniciar el servicio y actualizarla en el frontend. _(31/07/2025, GitHub Copilot)_
+- [x] El frontend debe esperar a que la URL esté disponible antes de intentar conectar. _(31/07/2025, GitHub Copilot)_
+- [x] El usuario no debe ingresar la URL manualmente nunca más. _(31/07/2025, GitHub Copilot)_
+- [x] Documentar el flujo de actualización automática de la URL. _(31/07/2025, GitHub Copilot)_
 
 ### 2. Visualización y Monitoreo de Servicios tipo Semáforo [PRIORIDAD 2]
-- [ ] Cambiar el nombre del estado "Adquisición USB" a "Adquisición de Datos" en el frontend.
-- [ ] Los estados de "Adquisición de Datos" y "API Backend" deben funcionar como semáforo:
+- [x] Cambiar el nombre del estado "Adquisición USB" a "Adquisición de Datos" en el frontend. _(31/07/2025, GitHub Copilot)_
+- [x] Los estados de "Adquisición de Datos" y "API Backend" deben funcionar como semáforo:
     - Verde: servicio corriendo y activo
     - Amarillo: servicio reiniciándose o con logs de advertencia
     - Rojo: servicio detenido o con error crítico
-- [ ] Mostrar el estado en tiempo real de ambos servicios en el dashboard.
+  _(31/07/2025, GitHub Copilot)_
+- [x] Mostrar el estado en tiempo real de ambos servicios en el dashboard. _(31/07/2025, GitHub Copilot)_
 
 
 ### 3. Automatización de Servicios en Jetson Nano [PRIORIDAD 3]
