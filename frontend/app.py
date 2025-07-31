@@ -304,25 +304,32 @@ class IoTDashboard:
                         else:
                             return 'Alto'
                     df_sensor['rango'] = df_sensor['value'].apply(temp_rango)
-                    # Gráfico de línea temporal con puntos coloreados
+                    # Agrupar por hora y rango para área apilada
+                    df_sensor['hora'] = pd.to_datetime(df_sensor['timestamp']).dt.floor('H')
+                    area_data = df_sensor.groupby(['hora', 'rango']).size().unstack(fill_value=0)
+                    # Gráfico de área apilada
                     color_map = {'Bajo': 'blue', 'Medio': 'yellow', 'Alto': 'red'}
-                    fig_line = go.Figure()
-                    for rango in ['Bajo', 'Medio', 'Alto']:
-                        df_rango = df_sensor[df_sensor['rango'] == rango]
-                        fig_line.add_trace(go.Scatter(
-                            x=df_rango['timestamp'],
-                            y=df_rango['value'],
-                            mode='markers+lines',
-                            name=f"{rango}",
-                            marker=dict(color=color_map[rango], size=10),
-                            line=dict(color=color_map[rango], width=2),
-                            showlegend=True
-                        ))
-                    fig_line.update_layout(
-                        title=f"Serie temporal de temperatura - {sensor}",
-                        xaxis_title="Timestamp",
-                        yaxis_title="Temperatura (°C)",
-                        legend_title="Rango"
+                    fig_area = go.Figure()
+                    for i, rango in enumerate(['Bajo', 'Medio', 'Alto']):
+                        if rango in area_data:
+                            fig_area.add_trace(go.Scatter(
+                                x=area_data.index,
+                                y=area_data[rango],
+                                mode='lines',
+                                name=rango,
+                                stackgroup='one',
+                                line=dict(width=0.5, color=color_map[rango]),
+                                fillcolor=color_map[rango],
+                                hoverinfo='x+y+name',
+                                showlegend=True
+                            ))
+                    fig_area.update_layout(
+                        title=f"Evolución registros temperatura (área apilada) - {sensor}",
+                        xaxis_title="Hora",
+                        yaxis_title="Cantidad de registros",
+                        legend_title="Rango",
+                        hovermode='x unified',
+                        template='simple_white'
                     )
                     # Pie chart
                     pie_counts = df_sensor['rango'].value_counts().reindex(['Bajo','Medio','Alto'], fill_value=0)
@@ -332,7 +339,7 @@ class IoTDashboard:
                     # Layout de dos columnas
                     col1, col2 = st.columns([2,1])
                     with col1:
-                        st.plotly_chart(fig_line, use_container_width=True)
+                        st.plotly_chart(fig_area, use_container_width=True)
                     with col2:
                         st.plotly_chart(fig_pie, use_container_width=True)
                 elif 'ldr' in sensor.lower() or 'luz' in sensor.lower():
