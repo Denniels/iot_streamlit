@@ -82,7 +82,7 @@ class LocalPostgresClient:
             return False
     
     def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
-        """Registrar el dispositivo si no existe y luego insertar/upsert datos de sensor en la base de datos local PostgreSQL evitando duplicados"""
+        """Registrar el dispositivo si no existe y luego insertar datos de sensor en la base de datos local PostgreSQL evitando duplicados"""
         if not self.conn:
             return False
 
@@ -104,7 +104,6 @@ class LocalPostgresClient:
         sensor_data_clean = convert_decimal(sensor_data)
         # Convertir timestamp a string ISO si es datetime
         if 'timestamp' in sensor_data_clean:
-            # Forzar timestamp a string ISO8601 (UTC)
             import dateutil.parser
             ts = sensor_data_clean['timestamp']
             if isinstance(ts, (int, float)):
@@ -135,12 +134,28 @@ class LocalPostgresClient:
             except Exception as e:
                 logger.error(f"Error registrando/actualizando dispositivo en base local: {e}")
 
-        # Upsert manual (simulado) en base local (aquí solo log, debes implementar el insert real si lo necesitas)
+        # Insertar en la tabla sensor_data
         try:
-            logger.info(f"Datos de sensor procesados localmente: {json.dumps(sensor_data_clean, default=str)}")
+            with self.conn.cursor() as cur:
+                query = """
+                    INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data, timestamp, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (device_id, sensor_type, timestamp) DO NOTHING;
+                """
+                cur.execute(query, (
+                    sensor_data_clean.get('device_id'),
+                    sensor_data_clean.get('sensor_type'),
+                    sensor_data_clean.get('value'),
+                    sensor_data_clean.get('unit'),
+                    json.dumps(sensor_data_clean.get('raw_data', {})),
+                    sensor_data_clean.get('timestamp'),
+                    datetime.now(timezone.utc).isoformat()
+                ))
+                self.conn.commit()
+            logger.info(f"Dato de sensor insertado en base local: {json.dumps(sensor_data_clean, default=str)}")
             return True
         except Exception as e:
-            logger.error(f"Error upsert datos de sensor en base local: {e}")
+            logger.error(f"Error insertando dato de sensor en base local: {e}")
             logger.error(f"Objeto problemático: {json.dumps(sensor_data_clean, default=str)}")
             return False
     

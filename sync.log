@@ -1,9 +1,0 @@
-nohup: ignoring input
-2025-07-27 14:24:38,819 - __main__ - INFO - Iniciando sincronización de datos con Supabase...
-2025-07-27 14:24:38,837 - backend.postgres_client - INFO - Conexión a PostgreSQL establecida
-2025-07-27 14:24:38,860 - backend.db_writer - INFO - Conexión a Supabase establecida
-2025-07-27 14:24:39,902 - httpx - INFO - HTTP Request: GET https://fhnszyxwbeifpeeeaqfd.supabase.co/rest/v1/sensor_data?select=%2A&order=timestamp.desc&limit=1 "HTTP/1.1 200 OK"
-2025-07-27 14:24:39,913 - __main__ - INFO - Último timestamp en Supabase: 2025-07-26T10:00:31.288303
-2025-07-27 14:24:39,948 - __main__ - INFO - Datos nuevos a sincronizar: 0
-2025-07-27 14:24:39,948 - __main__ - INFO - Sincronización completa. Filas sincronizadas: 0
-Sincronización completa. Filas sincronizadas: 0
