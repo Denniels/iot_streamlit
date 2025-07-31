@@ -5,8 +5,8 @@
     <circle cx="105" cy="105" r="18" fill="#FF9900"/>
     <rect x="170" y="75" width="110" height="60" rx="12" fill="white" stroke="#FF9900" stroke-width="4"/>
     <rect x="190" y="95" width="70" height="30" rx="6" fill="#FF9900" opacity="0.2"/>
-    <text x="140" y="190" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
-    <text x="140" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
+    <text x="225" y="190" font-size="36" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
+    <text x="225" y="205" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
   </g>
   <!-- Flecha 1 (corta, delgada y centrada) -->
   <polyline points="285,110 355,110" stroke="#FF9900" stroke-width="3" marker-end="url(#arrowhead)"/>
