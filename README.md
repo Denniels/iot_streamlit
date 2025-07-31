@@ -120,7 +120,6 @@ python main.py
 ├── api_flask.py
 ├── arduino_diagnostic.py
 ├── backend_api.service
-├── cloudflared.deb
 ├── db_writer.py
 ├── dev_roadmap.md
 ├── diagnose_arduino.py
