@@ -201,7 +201,13 @@ class IoTDashboard:
     def render_overview(self):
         st.title("🌐 IoT Dashboard - Vista General")
         st.markdown("<b>🔄 Pipeline IoT End-to-End</b>", unsafe_allow_html=True)
-        st.image("frontend/pipeline_iot.svg", use_container_width=True, caption="Captura → Procesa → Visualiza")
+        try:
+            with open("frontend/pipeline_iot.svg", "r") as f:
+                svg_content = f.read()
+            st.markdown(f'<div style="width:100%;text-align:center">{svg_content}</div>', unsafe_allow_html=True)
+            st.caption("Captura → Procesa → Visualiza")
+        except Exception as e:
+            st.warning(f"No se pudo cargar el diagrama SVG: {e}")
         # Estado de servicios systemd
         st.markdown("## 🛠️ Estado de Servicios")
         status_dict = self.get_service_status()
