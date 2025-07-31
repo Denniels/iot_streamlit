@@ -31,7 +31,7 @@
   <!-- Definición de flecha -->
   <defs>
     <marker id="arrowhead" markerWidth="16" markerHeight="12" refX="16" refY="6" orient="auto">
-      <polygon points="0 0, 16 6, 0 12" fill="#FF9900"/>
+      <polygon points="0 0, 16 6, 0 19" fill="#FF9900"/>
     </marker>
   </defs>
 </svg>
