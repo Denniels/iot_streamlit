@@ -304,29 +304,30 @@ class IoTDashboard:
                         else:
                             return 'Alto'
                     df_sensor['rango'] = df_sensor['value'].apply(temp_rango)
-                    # Agrupar por hora y rango para área apilada
-                    df_sensor['hora'] = pd.to_datetime(df_sensor['timestamp']).dt.floor('H')
-                    area_data = df_sensor.groupby(['hora', 'rango']).size().unstack(fill_value=0)
-                    # Gráfico de área apilada
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
+                    df_sensor = df_sensor.sort_values('timestamp')
                     color_map = {'Bajo': 'blue', 'Medio': 'yellow', 'Alto': 'red'}
+                    # Gráfico de área coloreada por rango
                     fig_area = go.Figure()
-                    for i, rango in enumerate(['Bajo', 'Medio', 'Alto']):
-                        if rango in area_data:
+                    for rango in ['Bajo', 'Medio', 'Alto']:
+                        df_rango = df_sensor[df_sensor['rango'] == rango]
+                        if not df_rango.empty:
                             fig_area.add_trace(go.Scatter(
-                                x=area_data.index,
-                                y=area_data[rango],
+                                x=df_rango['timestamp'],
+                                y=df_rango['value'],
                                 mode='lines',
                                 name=rango,
-                                stackgroup='one',
-                                line=dict(width=0.5, color=color_map[rango]),
+                                line=dict(width=2, color=color_map[rango]),
+                                fill='tozeroy',
                                 fillcolor=color_map[rango],
                                 hoverinfo='x+y+name',
-                                showlegend=True
+                                showlegend=True,
+                                opacity=0.5
                             ))
                     fig_area.update_layout(
-                        title=f"Evolución registros temperatura (área apilada) - {sensor}",
-                        xaxis_title="Hora",
-                        yaxis_title="Cantidad de registros",
+                        title=f"Evolución temperatura (área coloreada por rango) - {sensor}",
+                        xaxis_title="Timestamp",
+                        yaxis_title="Valor de temperatura",
                         legend_title="Rango",
                         hovermode='x unified',
                         template='simple_white'
