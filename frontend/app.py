@@ -331,23 +331,43 @@ class IoTDashboard:
 
         # Visualización de variables mejorada
         st.markdown("### 📈 Gráficos de variables")
+        
+        # Debug: Mostrar información sobre los datos
+        st.write(f"🔍 **Debug Info:**")
+        st.write(f"- DataFrame filtrado shape: {df_device_filtrado.shape}")
+        st.write(f"- Columnas disponibles: {list(df_device_filtrado.columns) if not df_device_filtrado.empty else 'No data'}")
+        
+        if not df_device_filtrado.empty:
+            st.write(f"- Tipos de sensores únicos: {df_device_filtrado['sensor_type'].unique().tolist() if 'sensor_type' in df_device_filtrado.columns else 'No sensor_type column'}")
+            st.write(f"- Rango de valores: {df_device_filtrado['value'].min() if 'value' in df_device_filtrado.columns else 'No value column'} - {df_device_filtrado['value'].max() if 'value' in df_device_filtrado.columns else 'No value column'}")
+        
         if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns and 'value' in df_device_filtrado.columns:
             sensor_types = df_device_filtrado['sensor_type'].unique().tolist()
+            st.write(f"📊 Procesando {len(sensor_types)} tipos de sensores: {sensor_types}")
+            
             for sensor in sensor_types:
+                st.markdown(f"#### 📈 Gráfico: {sensor}")
                 df_sensor = df_device_filtrado[df_device_filtrado['sensor_type'] == sensor].copy()
+                st.write(f"Datos para {sensor}: {len(df_sensor)} registros")
                 if 'temp' in sensor.lower():
-                    # Clasificar registros por rango
+                    # Clasificar registros por rango (ajustado para datos reales)
                     def temp_rango(val):
-                        if val <= 22:
+                        if val <= 35:
                             return 'Bajo'
-                        elif val <= 50:
+                        elif val <= 42:
                             return 'Medio'
                         else:
                             return 'Alto'
                     df_sensor['rango'] = df_sensor['value'].apply(temp_rango)
                     df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
-                    color_map = {'Bajo': 'blue', 'Medio': 'yellow', 'Alto': 'red'}
+                    
+                    # Colores más atractivos
+                    color_map = {
+                        'Bajo': '#4A90E2',     # Azul más vibrante
+                        'Medio': '#F5A623',    # Naranja/Amarillo
+                        'Alto': '#D0021B'      # Rojo vibrante
+                    }
                     # Gráfico de área coloreada por rango
                     fig_area = go.Figure()
                     for rango in ['Bajo', 'Medio', 'Alto']:
@@ -356,59 +376,149 @@ class IoTDashboard:
                             fig_area.add_trace(go.Scatter(
                                 x=df_rango['timestamp'],
                                 y=df_rango['value'],
-                                mode='lines',
+                                mode='lines+markers',
                                 name=rango,
-                                line=dict(width=2, color=color_map[rango]),
-                                fill='tozeroy',
+                                line=dict(width=3, color=color_map[rango]),
+                                fill='tonexty' if rango != 'Bajo' else 'tozeroy',
                                 fillcolor=color_map[rango],
-                                hoverinfo='x+y+name',
+                                hovertemplate=f'{rango}: %{{y:.1f}}°C<br>%{{x}}<extra></extra>',
                                 showlegend=True,
-                                opacity=0.5
+                                opacity=0.7,
+                                marker=dict(size=6, color=color_map[rango])
                             ))
                     fig_area.update_layout(
                         title=f"Evolución temperatura (área coloreada por rango) - {sensor}",
                         xaxis_title="Timestamp",
-                        yaxis_title="Valor de temperatura",
-                        legend_title="Rango",
+                        yaxis_title="Valor de temperatura (°C)",
+                        legend_title="Rango de Temperatura",
                         hovermode='x unified',
-                        template='simple_white'
+                        template='plotly_white',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family="Arial, sans-serif", size=12),
+                        title_font_size=16,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1
+                        )
                     )
-                    # Pie chart
+                    # Pie chart con colores mejorados
                     pie_counts = df_sensor['rango'].value_counts().reindex(['Bajo','Medio','Alto'], fill_value=0)
-                    fig_pie = px.pie(values=pie_counts.values, names=pie_counts.index, color=pie_counts.index,
-                        color_discrete_map={'Bajo':'blue','Medio':'yellow','Alto':'red'},
-                        title=f"Distribución de registros por rango de temperatura - {sensor}")
-                    # Layout de dos columnas
+                    fig_pie = px.pie(
+                        values=pie_counts.values, 
+                        names=pie_counts.index, 
+                        color=pie_counts.index,
+                        color_discrete_map={'Bajo':'#4A90E2','Medio':'#F5A623','Alto':'#D0021B'},
+                        title=f"Distribución de registros por rango de temperatura - {sensor}",
+                        hole=0.3  # Hacer un donut chart más moderno
+                    )
+                    fig_pie.update_traces(
+                        textposition='inside', 
+                        textinfo='percent+label',
+                        textfont_size=12,
+                        marker=dict(line=dict(color='#FFFFFF', width=2))
+                    )
+                    # Layout de dos columnas para gráficos principales
                     col1, col2 = st.columns([2,1])
                     with col1:
                         st.plotly_chart(fig_area, use_container_width=True)
                     with col2:
                         st.plotly_chart(fig_pie, use_container_width=True)
-                elif 'ldr' in sensor.lower() or 'luz' in sensor.lower():
-                    # Gráfico de línea para LDR con color amarillo
+                    
+                    # Gráfico adicional estilo "mountain chart" como en la segunda imagen
+                    st.markdown(f"##### 🏔️ Vista de montaña - {sensor}")
+                    fig_mountain = go.Figure()
+                    
+                    # Crear series superpuestas con diferentes opacidades
+                    colors_gradient = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
+                    for i, (rango, color) in enumerate(zip(['Alto', 'Medio', 'Bajo'], colors_gradient)):
+                        df_rango = df_sensor[df_sensor['rango'] == rango]
+                        if not df_rango.empty:
+                            fig_mountain.add_trace(go.Scatter(
+                                x=df_rango['timestamp'],
+                                y=df_rango['value'],
+                                mode='lines',
+                                name=rango,
+                                line=dict(width=0),
+                                fill='tonexty' if i > 0 else 'tozeroy',
+                                fillcolor=color,
+                                opacity=0.7,
+                                hovertemplate=f'{rango}: %{{y:.1f}}°C<extra></extra>'
+                            ))
+                    
+                    fig_mountain.update_layout(
+                        title="Visualización estilo montaña por rangos",
+                        xaxis_title="Tiempo",
+                        yaxis_title="Temperatura (°C)",
+                        template='plotly_white',
+                        showlegend=True,
+                        height=400,
+                        plot_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig_mountain, use_container_width=True)
+                elif 'ldr' in sensor.lower() or 'luz' in sensor.lower() or 'light' in sensor.lower():
+                    # Gráfico de línea para LDR con estilo mejorado
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
+                    df_sensor = df_sensor.sort_values('timestamp')
+                    
                     fig_ldr = go.Figure()
                     fig_ldr.add_trace(go.Scatter(
                         x=df_sensor['timestamp'],
                         y=df_sensor['value'],
                         mode='lines+markers',
                         name='Nivel de luz',
-                        marker=dict(color='#FFD700', size=8),
-                        line=dict(color='#FFD700', width=2)
+                        marker=dict(color='#FFD700', size=8, line=dict(width=2, color='#FFA500')),
+                        line=dict(color='#FF8C00', width=3),
+                        fill='tozeroy',
+                        fillcolor='rgba(255, 215, 0, 0.3)',
+                        hovertemplate='Luz: %{y}%<br>%{x}<extra></extra>'
                     ))
                     fig_ldr.update_layout(
                         title=f"Serie temporal de nivel de luz - {sensor}",
                         xaxis_title="Timestamp",
-                        yaxis_title="Nivel de luz (%)"
+                        yaxis_title="Nivel de luz (%)",
+                        template='plotly_white',
+                        showlegend=False,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_ldr, use_container_width=True)
                 else:
-                    # Gráfico de línea simple para otros sensores
-                    fig = px.line(
-                        df_sensor,
-                        x='timestamp',
-                        y='value',
-                        title=f"{sensor} - {selected_device}",
-                        markers=True
+                    # Gráfico de línea simple para otros sensores con estilo mejorado
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
+                    df_sensor = df_sensor.sort_values('timestamp')
+                    
+                    # Crear gráfico con gradiente de colores
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=df_sensor['timestamp'],
+                        y=df_sensor['value'],
+                        mode='lines+markers',
+                        name=sensor,
+                        line=dict(color='#00CC96', width=3),
+                        marker=dict(
+                            size=8,
+                            color=df_sensor['value'],
+                            colorscale='Viridis',
+                            showscale=True,
+                            colorbar=dict(title="Valor"),
+                            line=dict(width=1, color='white')
+                        ),
+                        fill='tozeroy',
+                        fillcolor='rgba(0, 204, 150, 0.2)',
+                        hovertemplate=f'{sensor}: %{{y}}<br>%{{x}}<extra></extra>'
+                    ))
+                    fig.update_layout(
+                        title=f"Serie temporal - {sensor} ({selected_device})",
+                        xaxis_title="Timestamp",
+                        yaxis_title="Valor",
+                        template='plotly_white',
+                        showlegend=False,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig, use_container_width=True)
         else:
@@ -489,6 +599,5 @@ class IoTDashboard:
             f"Última actualización: {st.session_state.last_update.strftime('%H:%M:%S')}")
 
 # Ejecutar aplicación
-if __name__ == "__main__":
-    dashboard = IoTDashboard()
-    dashboard.run()
+dashboard = IoTDashboard()
+dashboard.run()

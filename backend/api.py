@@ -277,10 +277,33 @@ async def get_latest_data(device_id: str = None, limit: int = 200):
             data = db.execute_query(
                 "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
             ) or []
+        
+        # Convertir datos a formato serializable
+        formatted_data = []
+        for row in data:
+            if isinstance(row, dict):
+                # Convertir timestamps a string ISO
+                if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                    row['timestamp'] = row['timestamp'].isoformat()
+                if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
+                    row['created_at'] = row['created_at'].isoformat()
+                formatted_data.append(row)
+            else:
+                # Si es tupla, convertir a dict usando las columnas esperadas
+                formatted_data.append({
+                    'device_id': row[0] if len(row) > 0 else None,
+                    'sensor_type': row[1] if len(row) > 1 else None,
+                    'value': row[2] if len(row) > 2 else None,
+                    'unit': row[3] if len(row) > 3 else None,
+                    'raw_data': row[4] if len(row) > 4 else None,
+                    'timestamp': row[5].isoformat() if len(row) > 5 and hasattr(row[5], 'isoformat') else str(row[5]) if len(row) > 5 else None,
+                    'created_at': row[6].isoformat() if len(row) > 6 and hasattr(row[6], 'isoformat') else str(row[6]) if len(row) > 6 else None
+                })
+        
         return ApiResponse(
             success=True,
-            message=f"{len(data)} registros recientes obtenidos",
-            data=data,
+            message=f"{len(formatted_data)} registros recientes obtenidos",
+            data=formatted_data,
             timestamp=datetime.now()
         )
     except Exception as e:

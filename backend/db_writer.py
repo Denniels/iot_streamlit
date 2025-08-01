@@ -19,9 +19,17 @@ class LocalPostgresClient:
             return []
         try:
             with self.conn.cursor() as cur:
-                cur.execute("SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
+                cur.execute("SELECT * FROM sensor_data_test WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
                 columns = [desc[0] for desc in cur.description]
                 data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                    if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
+                        row['created_at'] = row['created_at'].isoformat()
+                        
             return data
         except Exception as e:
             logger.error(f"Error obteniendo datos recientes de {device_id} desde base local: {e}")
@@ -134,11 +142,11 @@ class LocalPostgresClient:
             except Exception as e:
                 logger.error(f"Error registrando/actualizando dispositivo en base local: {e}")
 
-        # Insertar en la tabla sensor_data
+        # Insertar en la tabla sensor_data_test
         try:
             with self.conn.cursor() as cur:
                 query = """
-                    INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data, timestamp, created_at)
+                    INSERT INTO sensor_data_test (device_id, sensor_type, value, unit, raw_data, timestamp, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (device_id, sensor_type, timestamp) DO NOTHING;
                 """
@@ -218,11 +226,23 @@ class LocalPostgresClient:
     
     def get_latest_sensor_data(self, limit: int = 100) -> List[Dict]:
         """Obtener datos más recientes de sensores desde la base de datos local PostgreSQL"""
-        if not self.client:
+        if not self.conn:
             return []
         try:
             logger.info("Obteniendo datos de sensores desde la base local.")
-            return []
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT * FROM sensor_data_test ORDER BY timestamp DESC LIMIT %s;", (limit,))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                    if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
+                        row['created_at'] = row['created_at'].isoformat()
+                        
+            return data
         except Exception as e:
             logger.error(f"Error obteniendo datos de sensores desde base local: {e}")
             return []
