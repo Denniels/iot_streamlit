@@ -265,64 +265,66 @@ async def get_device_details(device_id: str):
 from backend.postgres_client import PostgreSQLClient
 
 @app.get("/data", response_model=ApiResponse)
-async def get_latest_data(device_id: str = None, limit: int = 200):
-    """Obtener los datos más recientes de la tabla sensor_data, filtrando por device_id si se especifica"""
+async def get_latest_data(device_id: str = None, limit: int = 200, hours: float = None, days: int = None):
+    """Obtener datos recientes con filtro temporal opcional"""
     try:
-        db = PostgreSQLClient()
-        if device_id:
-            data = db.execute_query(
-                "SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s", (device_id, limit)
-            ) or []
-        else:
-            data = db.execute_query(
-                "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
-            ) or []
+        db_client = LocalPostgresClient()
         
-        # Convertir datos a formato serializable
-        formatted_data = []
-        for row in data:
-            if isinstance(row, dict):
-                # Convertir timestamps a string ISO
-                if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                    row['timestamp'] = row['timestamp'].isoformat()
-                if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
-                    row['created_at'] = row['created_at'].isoformat()
-                formatted_data.append(row)
+        if hours is not None:
+            # Consulta por horas
+            if device_id:
+                data = db_client.get_data_by_hours(device_id, hours)
             else:
-                # Si es tupla, convertir a dict usando las columnas esperadas
-                formatted_data.append({
-                    'device_id': row[0] if len(row) > 0 else None,
-                    'sensor_type': row[1] if len(row) > 1 else None,
-                    'value': row[2] if len(row) > 2 else None,
-                    'unit': row[3] if len(row) > 3 else None,
-                    'raw_data': row[4] if len(row) > 4 else None,
-                    'timestamp': row[5].isoformat() if len(row) > 5 and hasattr(row[5], 'isoformat') else str(row[5]) if len(row) > 5 else None,
-                    'created_at': row[6].isoformat() if len(row) > 6 and hasattr(row[6], 'isoformat') else str(row[6]) if len(row) > 6 else None
-                })
+                data = db_client.get_all_data_by_hours(hours)
+            time_desc = f"últimas {hours} horas"
+        elif days is not None:
+            # Consulta por días
+            if device_id:
+                data = db_client.get_data_by_days(device_id, days)
+            else:
+                data = db_client.get_all_data_by_days(days)
+            time_desc = f"últimos {days} días"
+        else:
+            # Consulta por límite (comportamiento original)
+            if device_id:
+                data = db_client.execute_query(
+                    "SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s", (device_id, limit)
+                )
+            else:
+                data = db_client.execute_query(
+                    "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
+                )
+            time_desc = f"últimos {limit} registros"
         
         return ApiResponse(
             success=True,
-            message=f"{len(formatted_data)} registros recientes obtenidos",
-            data=formatted_data,
+            message=f"Datos recientes ({time_desc})" + (f" para {device_id}" if device_id else ""),
+            data=data,
             timestamp=datetime.now()
-        )
-    except Exception as e:
-        logger.error(f"Error obteniendo datos recientes: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error obteniendo datos recientes"
         )
 
 @app.get("/data/{device_id}")
-async def get_device_data(device_id: str, limit: int = 100):
-    """Obtener datos históricos de un dispositivo específico"""
+async def get_device_data(device_id: str, limit: int = 100, hours: float = None, days: int = None):
+    """Obtener datos históricos de un dispositivo específico con filtro temporal"""
     try:
         db_client = LocalPostgresClient()
-        data = db_client.get_recent_data(device_id, limit)
+        
+        if hours is not None:
+            # Consulta por horas
+            data = db_client.get_data_by_hours(device_id, hours)
+            time_desc = f"últimas {hours} horas"
+        elif days is not None:
+            # Consulta por días  
+            data = db_client.get_data_by_days(device_id, days)
+            time_desc = f"últimos {days} días"
+        else:
+            # Consulta por límite (comportamiento original)
+            data = db_client.get_recent_data(device_id, limit)
+            time_desc = f"últimos {limit} registros"
         
         return ApiResponse(
             success=True,
-            message=f"Datos históricos de {device_id} (últimos {limit})",
+            message=f"Datos históricos de {device_id} ({time_desc})",
             data=data,
             timestamp=datetime.now()
         )

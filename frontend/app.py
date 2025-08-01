@@ -118,7 +118,56 @@ class IoTDashboard:
         if 'selected_device' not in st.session_state:
             st.session_state.selected_device = None
 
+    def get_sensor_data_by_time_range(self, device_id=None, time_range="recent", hours=None, days=None):
+        """
+        Obtiene datos de sensores según el rango temporal especificado
+        """
+        if not API_URL:
+            st.error("Debes ingresar la URL pública de la API Jetson (Cloudflare Tunnel) en la barra lateral.")
+            return None
+        try:
+            if device_id:
+                url = f"{API_URL}/data/{device_id}"
+            else:
+                url = f"{API_URL}/data"
+            
+            # Construir parámetros según el rango temporal
+            params = {}
+            if time_range == "real_time":
+                params['hours'] = 0.17  # ~10 minutos
+            elif time_range == "today":
+                params['hours'] = 24
+            elif time_range == "week":
+                params['days'] = 7
+            elif time_range == "month":
+                params['days'] = 30
+            elif time_range == "year":
+                params['days'] = 365
+            elif hours:
+                params['hours'] = hours
+            elif days:
+                params['days'] = days
+            else:
+                params['limit'] = 1000  # Fallback para datos recientes
+            
+            # Debug: mostrar qué parámetros se están enviando
+            st.write(f"🔍 **Debug API Call:** URL: {url}, Params: {params}")
+            
+            resp = requests.get(url, params=params, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                result_data = data.get('data', [])
+                st.write(f"✅ **API Response:** Recibidos {len(result_data)} registros")
+                return result_data
+            else:
+                st.error(f"❌ Error consultando API: {resp.status_code} {resp.text}")
+                return None
+        except Exception as e:
+            st.error(f"❌ Error consultando API: {e}")
+            return None
+
     def get_sensor_data(self, limit=500):
+        """Método legacy - usar get_sensor_data_by_time_range en su lugar"""
         if not API_URL:
             st.error("Debes ingresar la URL pública de la API Jetson (Cloudflare Tunnel) en la barra lateral.")
             return None
@@ -231,50 +280,88 @@ class IoTDashboard:
             st.error("No se puede conectar con la API Jetson. Verifique la URL pública de Cloudflare Tunnel.")
             return
         
-        data = self.get_sensor_data(200)
-        if not data:
-            st.error("No se pueden cargar los datos desde la API Jetson")
-            return
-        df = pd.DataFrame(data)
-        if 'raw_data' in df.columns:
-            df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
-        if df.empty:
-            st.info("No hay datos disponibles en la API Jetson.")
-            return
-
-        # Selección de dispositivo (mostrar todos los device_id únicos)
+        # Selección de dispositivo PRIMERO
         st.markdown("### 📱 Selecciona un dispositivo para visualizar sus datos")
         device_ids = self.get_all_devices()
         st.info(f"📊 Dispositivos disponibles: {len(device_ids)}")
-        for device in device_ids:
-            device_type = "🔌 USB" if "usb" in device.lower() else "🌐 Ethernet" if "ethernet" in device.lower() else "❓ Desconocido"
-            count = len([row for row in df.to_dict('records') if row.get('device_id') == device])
-            st.write(f"{device_type} **{device}** - {count} registros")
         selected_device = st.selectbox("Dispositivo:", device_ids, key="device_selector")
 
-        # Si no hay datos recientes, buscar los últimos datos históricos del dispositivo seleccionado
-        df_device = df[df['device_id'] == selected_device]
-        if df_device.empty:
-            # Buscar los últimos datos históricos del dispositivo desde la API
-            try:
-                url = f"{API_URL}/data/{selected_device}?limit=50"
-                resp = requests.get(url, timeout=10)
-                if resp.status_code == 200:
-                    data_hist = resp.json().get('data', [])
-                    df_device = pd.DataFrame(data_hist)
-                else:
-                    df_device = pd.DataFrame()
-            except Exception:
-                df_device = pd.DataFrame()
-
-        # Mostrar tabla principal filtrada o mensaje si no hay datos
-        st.markdown(f"### Últimos datos de sensores - {selected_device}")
+        # --- Filtro de rango temporal ANTES de cargar datos ---
+        st.markdown("### ⏳ Filtro de rango temporal")
+        rango_opciones = [
+            "Tiempo real (últimos 10 min)",
+            "Hoy",
+            "Semana",
+            "Mes",
+            "Año",
+            "Personalizado"
+        ]
+        rango_seleccionado = st.selectbox("Selecciona el rango de tiempo a visualizar:", rango_opciones, key="rango_temporal")
+        
+        # Mapear selección a parámetros para la API
+        time_range_map = {
+            "Tiempo real (últimos 10 min)": "real_time",
+            "Hoy": "today", 
+            "Semana": "week",
+            "Mes": "month",
+            "Año": "year"
+        }
+        
+        # Obtener datos según el rango temporal seleccionado
+        if rango_seleccionado == "Personalizado":
+            # Para personalizado, primero obtenemos datos de una semana para obtener el rango disponible
+            st.write("🔍 Obteniendo muestra de datos para configurar rango personalizado...")
+            data_sample = self.get_sensor_data_by_time_range(selected_device, "week")  # Muestra de una semana
+            if data_sample:
+                df_sample = pd.DataFrame(data_sample)
+                df_sample['timestamp'] = pd.to_datetime(df_sample['timestamp'])
+                min_fecha = df_sample['timestamp'].min()
+                max_fecha = df_sample['timestamp'].max()
+                
+                st.write(f"📊 Datos disponibles desde {min_fecha} hasta {max_fecha}")
+                
+                rango_slider = st.slider(
+                    "Selecciona el rango de fechas:",
+                    min_value=min_fecha,
+                    max_value=max_fecha,
+                    value=(min_fecha, max_fecha),
+                    format="YYYY-MM-DD HH:mm"
+                )
+                
+                # Para el rango personalizado, calcular horas desde ahora hacia atrás
+                ahora = datetime.now()
+                delta_desde_ahora = ahora - rango_slider[0]
+                hours_range = delta_desde_ahora.total_seconds() / 3600
+                
+                st.write(f"🕐 Solicitando datos de las últimas {hours_range:.1f} horas")
+                data = self.get_sensor_data_by_time_range(selected_device, hours=hours_range)
+            else:
+                st.error("No hay datos disponibles para configurar rango personalizado")
+                return
+        else:
+            # Usar mapeo directo para otros rangos
+            time_range = time_range_map.get(rango_seleccionado, "real_time")
+            st.write(f"🕐 Cargando datos para: {rango_seleccionado}")
+            data = self.get_sensor_data_by_time_range(selected_device, time_range)
+        
+        if not data:
+            st.error(f"No se pueden cargar los datos desde la API Jetson para el dispositivo {selected_device}")
+            return
+            
+        df_device = pd.DataFrame(data)
         if 'raw_data' in df_device.columns:
             df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if df_device.empty:
-            st.info(f"No hay datos disponibles para {selected_device} en la API Jetson.")
-        else:
-            st.dataframe(df_device, use_container_width=True)
+            st.info(f"No hay datos disponibles para {selected_device} en el rango temporal seleccionado.")
+            return
+
+        # Mostrar información del dispositivo
+        device_type = "🔌 USB" if "usb" in selected_device.lower() else "🌐 Ethernet" if "ethernet" in selected_device.lower() else "❓ Desconocido"
+        st.write(f"{device_type} **{selected_device}** - {len(df_device)} registros en {rango_seleccionado}")
+
+        # Mostrar tabla principal filtrada
+        st.markdown(f"### Datos de sensores - {selected_device} ({rango_seleccionado})")
+        st.dataframe(df_device, use_container_width=True)
 
         # Métricas rápidas
         st.markdown("### 📊 Métricas rápidas")
@@ -287,46 +374,12 @@ class IoTDashboard:
             else:
                 st.metric("Última actualización", "Sin datos")
 
-        # --- Filtro de rango temporal ---
-        st.markdown("### ⏳ Filtro de rango temporal")
-        rango_opciones = [
-            "Tiempo real (últimos 10 min)",
-            "Hoy",
-            "Semana",
-            "Mes",
-            "Año",
-            "Personalizado"
-        ]
-        rango_seleccionado = st.selectbox("Selecciona el rango de tiempo a visualizar:", rango_opciones, key="rango_temporal")
+        # Aplicar filtro temporal local SOLO para el rango personalizado
         df_device['timestamp'] = pd.to_datetime(df_device['timestamp'])
-        ahora = pd.Timestamp.now(tz=df_device['timestamp'].dt.tz if df_device['timestamp'].dt.tz is not None else None)
-        if rango_seleccionado == "Tiempo real (últimos 10 min)":
-            inicio = ahora - pd.Timedelta(minutes=10)
-            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
-        elif rango_seleccionado == "Hoy":
-            inicio = ahora.normalize()
-            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
-        elif rango_seleccionado == "Semana":
-            inicio = ahora - pd.Timedelta(days=7)
-            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
-        elif rango_seleccionado == "Mes":
-            inicio = ahora - pd.Timedelta(days=30)
-            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
-        elif rango_seleccionado == "Año":
-            inicio = ahora - pd.Timedelta(days=365)
-            df_device_filtrado = df_device[df_device['timestamp'] >= inicio]
-        elif rango_seleccionado == "Personalizado":
-            min_fecha = df_device['timestamp'].min()
-            max_fecha = df_device['timestamp'].max()
-            rango_slider = st.slider(
-                "Selecciona el rango de fechas:",
-                min_value=min_fecha,
-                max_value=max_fecha,
-                value=(min_fecha, max_fecha),
-                format="YYYY-MM-DD HH:mm"
-            )
+        if rango_seleccionado == "Personalizado" and 'rango_slider' in locals():
             df_device_filtrado = df_device[(df_device['timestamp'] >= rango_slider[0]) & (df_device['timestamp'] <= rango_slider[1])]
         else:
+            # Para otros rangos, los datos ya vienen filtrados de la API
             df_device_filtrado = df_device.copy()
 
         # Visualización de variables mejorada

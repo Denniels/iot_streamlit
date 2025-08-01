@@ -267,16 +267,15 @@ class ArduinoDetector:
 
                         # Insertar cada sensor por separado
                         for sensor_name, value in sensors.items():
-                            if sensor_name != 'temperature_avg':  # Evitar duplicar el promedio
-                                sensor_data_clean = {
-                                    'device_id': device_id,
-                                    'sensor_type': sensor_name,
-                                    'value': float(value) if isinstance(value, (int, float)) else value,
-                                    'unit': self._get_sensor_unit(sensor_name),
-                                    'raw_data': data,
-                                    'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
-                                }
-                                self.db_client.insert_sensor_data(sensor_data_clean)
+                            sensor_data_clean = {
+                                'device_id': device_id,
+                                'sensor_type': sensor_name,
+                                'value': float(value) if isinstance(value, (int, float)) else value,
+                                'unit': self._get_sensor_unit(sensor_name),
+                                'raw_data': data,
+                                'timestamp': datetime.now(timezone.utc).isoformat()  # Siempre UTC ISO8601
+                            }
+                            self.db_client.insert_sensor_data(sensor_data_clean)
 
                         logger.debug(f"📊 Datos recibidos: Temp1={sensors.get('temperature_1')}°C, Luz={sensors.get('light_level')}%")
                         return data

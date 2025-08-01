@@ -32,6 +32,102 @@ class LocalPostgresClient:
         except Exception as e:
             logger.error(f"Error obteniendo datos recientes de {device_id} desde base local: {e}")
             return []
+
+    def get_data_by_hours(self, device_id: str, hours: float) -> List[Dict]:
+        """Obtener datos de un dispositivo desde las últimas N horas"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT * FROM sensor_data 
+                    WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s hours'
+                    ORDER BY timestamp DESC
+                """, (device_id, hours))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                        
+            return data
+        except Exception as e:
+            logger.error(f"Error obteniendo datos por horas de {device_id} desde base local: {e}")
+            return []
+
+    def get_data_by_days(self, device_id: str, days: int) -> List[Dict]:
+        """Obtener datos de un dispositivo desde los últimos N días"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT * FROM sensor_data 
+                    WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+                    ORDER BY timestamp DESC
+                """, (device_id, days))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                        
+            return data
+        except Exception as e:
+            logger.error(f"Error obteniendo datos por días de {device_id} desde base local: {e}")
+            return []
+
+    def get_all_data_by_hours(self, hours: float) -> List[Dict]:
+        """Obtener datos de todos los dispositivos desde las últimas N horas"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT * FROM sensor_data 
+                    WHERE timestamp >= NOW() - INTERVAL '%s hours'
+                    ORDER BY timestamp DESC
+                """, (hours,))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                        
+            return data
+        except Exception as e:
+            logger.error(f"Error obteniendo todos los datos por horas desde base local: {e}")
+            return []
+
+    def get_all_data_by_days(self, days: int) -> List[Dict]:
+        """Obtener datos de todos los dispositivos desde los últimos N días"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT * FROM sensor_data 
+                    WHERE timestamp >= NOW() - INTERVAL '%s days'
+                    ORDER BY timestamp DESC
+                """, (days,))
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                        
+            return data
+        except Exception as e:
+            logger.error(f"Error obteniendo todos los datos por días desde base local: {e}")
+            return []
     def get_system_events(self, limit: int = 50) -> List[Dict]:
         """Obtener los eventos recientes del sistema desde la base de datos local PostgreSQL"""
         try:

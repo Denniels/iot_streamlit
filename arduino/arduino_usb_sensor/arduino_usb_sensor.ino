@@ -2,14 +2,14 @@
 Arduino USB - 3 sondas NTC + LDR vía puerto serial
 Hardware: Arduino Uno/Nano + 3x NTC 10kΩ + 1x LDR
 Conexiones:
-- NTC1: 5V--NTC(10kΩ)--A0--R(10kΩ)--GND
-- NTC2: 5V--NTC(10kΩ)--A1--R(10kΩ)--GND  
-- NTC3: 5V--NTC(10kΩ)--A2--R(10kΩ)--GND
-- LDR: 5V--LDR--A3--R(10kΩ)--GND
+- NTC1: 5V--R(10kΩ)--A0--NTC(10kΩ)--GND
+- NTC2: 5V--R(10kΩ)--A1--NTC(10kΩ)--GND  
+- NTC3: 5V--R(10kΩ)--A2--NTC(10kΩ)--GND
+- LDR: 5V--R(10kΩ)--A3--LDR--GND
 
-IMPORTANTE: NTC está en la parte SUPERIOR del divisor
-- Temperatura ↑ → Resistencia NTC ↓ → Voltaje A0 ↑ → Lectura ADC ↑
-- Temperatura ↓ → Resistencia NTC ↑ → Voltaje A0 ↓ → Lectura ADC ↓
+IMPORTANTE: NTC está en la parte INFERIOR del divisor (configuración pull-down)
+- Temperatura ↑ → Resistencia NTC ↓ → Voltaje A0 ↑ → Lectura ADC ↑ → Resistencia calculada ↓
+- Temperatura ↓ → Resistencia NTC ↑ → Voltaje A0 ↓ → Lectura ADC ↓ → Resistencia calculada ↑
 */
 
 #include <ArduinoJson.h>
@@ -29,6 +29,10 @@ const float B_COEFFICIENT = 3950.0;       // Coeficiente B típico para NTC 10k�
 // Variables globales
 unsigned long lastSensorRead = 0;
 const unsigned long SENSOR_INTERVAL = 2000; // 2 segundos
+
+// Declaraciones de funciones
+float readNTCTemperature(int pin);
+int readLDRLevel(int rawADC);
 
 // Estructura de datos del sensor
 struct SensorData {
@@ -89,9 +93,9 @@ SensorData readSensors() {
   data.temperature2 = readNTCTemperature(NTC2_PIN);
   data.temperature3 = readNTCTemperature(NTC3_PIN);
   
-  // Leer LDR (fotoresistencia)
+  // Leer LDR (fotoresistencia) - configuración pull-down
   int ldrRaw = analogRead(LDR_PIN);
-  data.lightLevel = map(ldrRaw, 0, 1023, 0, 100);
+  data.lightLevel = readLDRLevel(ldrRaw);
   
   // Timestamp y estado
   data.timestamp = millis();
@@ -112,10 +116,10 @@ float readNTCTemperature(int pin) {
     return -998.0; // Error: circuito abierto
   }
   
-  // CORRECCIÓN: Para configuración 5V--NTC--A0--R(10kΩ)--GND
-  // El NTC está en la parte superior del divisor de voltaje
-  float resistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC));
-  
+  // CORRECCIÓN: Para configuración 5V--R(10kΩ)--A0--NTC(10kΩ)--GND
+  // El NTC está en la parte INFERIOR del divisor de voltaje (pull-down)
+  float resistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC)); 
+
   // Debug opcional: descomentar para verificar cálculos
   // Serial.print("ADC: "); Serial.print(rawADC);
   // Serial.print(", R_NTC: "); Serial.print(resistance);
@@ -136,6 +140,47 @@ float readNTCTemperature(int pin) {
   }
   
   return steinhart;
+}
+
+int readLDRLevel(int rawADC) {
+  // Función para LDR en configuración pull-down: 5V--R(10kΩ)--A3--LDR--GND
+  // A más luz → Resistencia LDR ↓ → Voltaje A3 ↑ → ADC ↑ → Nivel de luz ↑
+  // A menos luz → Resistencia LDR ↑ → Voltaje A3 ↓ → ADC ↓ → Nivel de luz ↓
+  
+  // Evitar valores extremos
+  if (rawADC >= 1023) {
+    return 100; // Máxima luz (LDR con resistencia muy baja)
+  }
+  if (rawADC <= 1) {
+    return 0;   // Mínima luz (LDR con resistencia muy alta)
+  }
+  
+  // Calcular resistencia de la LDR usando fórmula pull-down
+  float ldrResistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC));
+  
+  // Convertir resistencia a nivel de luz (0-100%)
+  // Típicamente LDR: ~1kΩ (luz brillante) a ~100kΩ (oscuridad)
+  // Usamos escala logarítmica para mejor representación
+  const float MIN_LDR_RESISTANCE = 500.0;    // Resistencia con luz brillante (Ω)
+  const float MAX_LDR_RESISTANCE = 50000.0;  // Resistencia en oscuridad (Ω)
+  
+  // Limitar rango de resistencia
+  if (ldrResistance < MIN_LDR_RESISTANCE) ldrResistance = MIN_LDR_RESISTANCE;
+  if (ldrResistance > MAX_LDR_RESISTANCE) ldrResistance = MAX_LDR_RESISTANCE;
+  
+  // Conversión logarítmica invertida (menor resistencia = más luz)
+  float logMin = log(MIN_LDR_RESISTANCE);
+  float logMax = log(MAX_LDR_RESISTANCE);
+  float logCurrent = log(ldrResistance);
+  
+  // Invertir la escala (menos resistencia = más luz = mayor porcentaje)
+  int lightLevel = 100 - (int)((logCurrent - logMin) / (logMax - logMin) * 100);
+  
+  // Asegurar rango 0-100
+  if (lightLevel < 0) lightLevel = 0;
+  if (lightLevel > 100) lightLevel = 100;
+  
+  return lightLevel;
 }
 
 void sendSensorData(SensorData data) {
@@ -231,4 +276,4 @@ float readVccVoltage() {
 
 // Comandos: STATUS, READ_NOW
 // Hardware: 3x NTC 10kΩ (A0,A1,A2) + 1x LDR (A3)
-// Conexión NTC: 5V--NTC--Ax--R(10kΩ)--GND
+// Conexión NTC pull-down: 5V--R(10kΩ)--Ax--NTC(10kΩ)--GND
