@@ -19,7 +19,7 @@ class LocalPostgresClient:
             return []
         try:
             with self.conn.cursor() as cur:
-                cur.execute("SELECT * FROM sensor_data_test WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
+                cur.execute("SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
                 columns = [desc[0] for desc in cur.description]
                 data = [dict(zip(columns, row)) for row in cur.fetchall()]
                 
@@ -27,8 +27,6 @@ class LocalPostgresClient:
                 for row in data:
                     if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
                         row['timestamp'] = row['timestamp'].isoformat()
-                    if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
-                        row['created_at'] = row['created_at'].isoformat()
                         
             return data
         except Exception as e:
@@ -87,8 +85,52 @@ class LocalPostgresClient:
             return True
         except Exception as e:
             logger.error(f"Error registrando dispositivo en base local: {e}")
+            
+            # Si hay error de transacción abortada, reconectar y reintentar
+            if "current transaction is aborted" in str(e):
+                logger.warning("Transacción abortada detectada en registro de dispositivo, reconectando...")
+                if self._reconnect():
+                    try:
+                        with self.conn.cursor() as cur:
+                            cur.execute("""
+                                INSERT INTO devices (device_id, device_type, status, last_seen)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (device_id) DO UPDATE SET
+                                    device_type = EXCLUDED.device_type,
+                                    status = EXCLUDED.status,
+                                    last_seen = EXCLUDED.last_seen;
+                            """, (
+                                device_data.get('device_id'),
+                                device_data.get('device_type'),
+                                device_data.get('status', 'online'),
+                                device_data.get('last_seen', datetime.now().isoformat())
+                            ))
+                            self.conn.commit()
+                        logger.info(f"Dispositivo registrado tras reconexión: {device_data.get('device_id')}")
+                        return True
+                    except Exception as e2:
+                        logger.error(f"Error tras reconexión registrando dispositivo: {e2}")
             return False
     
+    def _reconnect(self):
+        """Reconectar a la base de datos cuando hay errores de transacción"""
+        try:
+            if self.conn:
+                self.conn.close()
+            self.conn = psycopg2.connect(
+                dbname=os.getenv('DB_NAME', 'iot_db'),
+                user=os.getenv('DB_USER', 'iot_user'),
+                password=os.getenv('DB_PASSWORD', 'DAms15820'),
+                host=os.getenv('DB_HOST', 'localhost'),
+                port=os.getenv('DB_PORT', '5432')
+            )
+            logger.info("Reconexión a la base de datos local PostgreSQL establecida")
+            return True
+        except Exception as e:
+            logger.error(f"Error reconectando a la base de datos local PostgreSQL: {e}")
+            self.conn = None
+            return False
+
     def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
         """Registrar el dispositivo si no existe y luego insertar datos de sensor en la base de datos local PostgreSQL evitando duplicados"""
         if not self.conn:
@@ -141,13 +183,21 @@ class LocalPostgresClient:
                 self.register_device(device_data)
             except Exception as e:
                 logger.error(f"Error registrando/actualizando dispositivo en base local: {e}")
+                # Si hay error de transacción abortada, reconectar
+                if "current transaction is aborted" in str(e):
+                    logger.warning("Transacción abortada detectada, reconectando...")
+                    if self._reconnect():
+                        try:
+                            self.register_device(device_data)
+                        except Exception as e2:
+                            logger.error(f"Error tras reconexión registrando dispositivo: {e2}")
 
-        # Insertar en la tabla sensor_data_test
+        # Insertar en la tabla sensor_data
         try:
             with self.conn.cursor() as cur:
                 query = """
-                    INSERT INTO sensor_data_test (device_id, sensor_type, value, unit, raw_data, timestamp, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (device_id, sensor_type, timestamp) DO NOTHING;
                 """
                 cur.execute(query, (
@@ -156,8 +206,7 @@ class LocalPostgresClient:
                     sensor_data_clean.get('value'),
                     sensor_data_clean.get('unit'),
                     json.dumps(sensor_data_clean.get('raw_data', {})),
-                    sensor_data_clean.get('timestamp'),
-                    datetime.now(timezone.utc).isoformat()
+                    sensor_data_clean.get('timestamp')
                 ))
                 self.conn.commit()
             logger.info(f"Dato de sensor insertado en base local: {json.dumps(sensor_data_clean, default=str)}")
@@ -165,6 +214,26 @@ class LocalPostgresClient:
         except Exception as e:
             logger.error(f"Error insertando dato de sensor en base local: {e}")
             logger.error(f"Objeto problemático: {json.dumps(sensor_data_clean, default=str)}")
+            
+            # Si hay error de transacción abortada, reconectar y reintentar
+            if "current transaction is aborted" in str(e):
+                logger.warning("Transacción abortada detectada en inserción, reconectando...")
+                if self._reconnect():
+                    try:
+                        with self.conn.cursor() as cur:
+                            cur.execute(query, (
+                                sensor_data_clean.get('device_id'),
+                                sensor_data_clean.get('sensor_type'),
+                                sensor_data_clean.get('value'),
+                                sensor_data_clean.get('unit'),
+                                json.dumps(sensor_data_clean.get('raw_data', {})),
+                                sensor_data_clean.get('timestamp')
+                            ))
+                            self.conn.commit()
+                        logger.info(f"Dato de sensor insertado tras reconexión: {json.dumps(sensor_data_clean, default=str)}")
+                        return True
+                    except Exception as e2:
+                        logger.error(f"Error tras reconexión insertando sensor: {e2}")
             return False
     
     def update_device_status(self, device_id: str, status: str) -> bool:
@@ -231,7 +300,7 @@ class LocalPostgresClient:
         try:
             logger.info("Obteniendo datos de sensores desde la base local.")
             with self.conn.cursor() as cur:
-                cur.execute("SELECT * FROM sensor_data_test ORDER BY timestamp DESC LIMIT %s;", (limit,))
+                cur.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s;", (limit,))
                 columns = [desc[0] for desc in cur.description]
                 data = [dict(zip(columns, row)) for row in cur.fetchall()]
                 
@@ -239,8 +308,6 @@ class LocalPostgresClient:
                 for row in data:
                     if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
                         row['timestamp'] = row['timestamp'].isoformat()
-                    if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
-                        row['created_at'] = row['created_at'].isoformat()
                         
             return data
         except Exception as e:
