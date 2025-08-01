@@ -1,7 +1,12 @@
 // Arduino Ethernet - 2 sondas NTC de temperatura
 // Hardware: Arduino Uno/Nano/Mega + Ethernet Shield + 2x NTC 10kΩ
-// Conexión: NTC1 en A0, NTC2 en A1, divisor 10kΩ a GND
+// Conexión: 5V--NTC(10kΩ)--A0--R(10kΩ)--GND
+//           5V--NTC(10kΩ)--A1--R(10kΩ)--GND
 // Endpoints: /data, /status
+//
+// IMPORTANTE: NTC está en la parte SUPERIOR del divisor
+// - Temperatura ↑ → Resistencia NTC ↓ → Voltaje A0/A1 ↑ → Lectura ADC ↑
+// - Temperatura ↓ → Resistencia NTC ↑ → Voltaje A0/A1 ↓ → Lectura ADC ↓
 
 #include <SPI.h>
 #include <Ethernet.h>
@@ -156,14 +161,15 @@ float readNTCTemperature(int pin) {
   
   // Evitar división por cero
   if (rawADC >= 1023) {
-    return -999.0; // Error: circuito abierto
+    return -999.0; // Error: posible cortocircuito del NTC
   }
   if (rawADC <= 0) {
-    return -998.0; // Error: cortocircuito
+    return -998.0; // Error: circuito abierto
   }
   
-  // Convertir a resistencia
-  float resistance = SERIES_RESISTOR * ((1023.0 / rawADC) - 1.0);
+  // CORRECCIÓN: Para configuración 5V--NTC--A0--R(10kΩ)--GND
+  // El NTC está en la parte superior del divisor de voltaje
+  float resistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC));
   
   // Ecuación de Steinhart-Hart simplificada (aproximación B parameter)
   float steinhart;

@@ -1,11 +1,15 @@
-depura el tiempo de espera, dale un poco mas de tiempo/*
+/*
 Arduino USB - 3 sondas NTC + LDR vía puerto serial
 Hardware: Arduino Uno/Nano + 3x NTC 10kΩ + 1x LDR
 Conexiones:
-- NTC1: 5V--NTC--A0--R(10kΩ)--GND
-- NTC2: 5V--NTC--A1--R(10kΩ)--GND  
-- NTC3: 5V--NTC--A2--R(10kΩ)--GND
+- NTC1: 5V--NTC(10kΩ)--A0--R(10kΩ)--GND
+- NTC2: 5V--NTC(10kΩ)--A1--R(10kΩ)--GND  
+- NTC3: 5V--NTC(10kΩ)--A2--R(10kΩ)--GND
 - LDR: 5V--LDR--A3--R(10kΩ)--GND
+
+IMPORTANTE: NTC está en la parte SUPERIOR del divisor
+- Temperatura ↑ → Resistencia NTC ↓ → Voltaje A0 ↑ → Lectura ADC ↑
+- Temperatura ↓ → Resistencia NTC ↑ → Voltaje A0 ↓ → Lectura ADC ↓
 */
 
 #include <ArduinoJson.h>
@@ -100,8 +104,22 @@ float readNTCTemperature(int pin) {
   // Leer valor analógico
   int rawADC = analogRead(pin);
   
-  // Convertir a resistencia
-  float resistance = SERIES_RESISTOR * ((1023.0 / rawADC) - 1.0);
+  // Evitar división por cero
+  if (rawADC >= 1023) {
+    return -999.0; // Error: posible cortocircuito del NTC
+  }
+  if (rawADC <= 0) {
+    return -998.0; // Error: circuito abierto
+  }
+  
+  // CORRECCIÓN: Para configuración 5V--NTC--A0--R(10kΩ)--GND
+  // El NTC está en la parte superior del divisor de voltaje
+  float resistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC));
+  
+  // Debug opcional: descomentar para verificar cálculos
+  // Serial.print("ADC: "); Serial.print(rawADC);
+  // Serial.print(", R_NTC: "); Serial.print(resistance);
+  // Serial.print(" ohms");
   
   // Ecuación de Steinhart-Hart simplificada (aproximación B parameter)
   float steinhart;
