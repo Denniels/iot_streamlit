@@ -77,7 +77,7 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
 # Usar la última URL pública conocida (puedes poner aquí la última URL conocida o dejarlo vacío para forzar la detección)
-DEFAULT_CF_URL = "https://booty-stuart-opponents-tech.trycloudflare.com"
+DEFAULT_CF_URL = "https://huge-variations-wb-iraq.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
@@ -421,44 +421,12 @@ class IoTDashboard:
                         textfont_size=12,
                         marker=dict(line=dict(color='#FFFFFF', width=2))
                     )
-                    # Layout de dos columnas para gráficos principales
+                    # Layout de dos columnas
                     col1, col2 = st.columns([2,1])
                     with col1:
                         st.plotly_chart(fig_area, use_container_width=True)
                     with col2:
                         st.plotly_chart(fig_pie, use_container_width=True)
-                    
-                    # Gráfico adicional estilo "mountain chart" como en la segunda imagen
-                    st.markdown(f"##### 🏔️ Vista de montaña - {sensor}")
-                    fig_mountain = go.Figure()
-                    
-                    # Crear series superpuestas con diferentes opacidades
-                    colors_gradient = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
-                    for i, (rango, color) in enumerate(zip(['Alto', 'Medio', 'Bajo'], colors_gradient)):
-                        df_rango = df_sensor[df_sensor['rango'] == rango]
-                        if not df_rango.empty:
-                            fig_mountain.add_trace(go.Scatter(
-                                x=df_rango['timestamp'],
-                                y=df_rango['value'],
-                                mode='lines',
-                                name=rango,
-                                line=dict(width=0),
-                                fill='tonexty' if i > 0 else 'tozeroy',
-                                fillcolor=color,
-                                opacity=0.7,
-                                hovertemplate=f'{rango}: %{{y:.1f}}°C<extra></extra>'
-                            ))
-                    
-                    fig_mountain.update_layout(
-                        title="Visualización estilo montaña por rangos",
-                        xaxis_title="Tiempo",
-                        yaxis_title="Temperatura (°C)",
-                        template='plotly_white',
-                        showlegend=True,
-                        height=400,
-                        plot_bgcolor='rgba(0,0,0,0)'
-                    )
-                    st.plotly_chart(fig_mountain, use_container_width=True)
                 elif 'ldr' in sensor.lower() or 'luz' in sensor.lower() or 'light' in sensor.lower():
                     # Gráfico de línea para LDR con estilo mejorado
                     df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
