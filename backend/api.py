@@ -302,6 +302,13 @@ async def get_latest_data(device_id: str = None, limit: int = 200, hours: float 
             data=data,
             timestamp=datetime.now()
         )
+    
+    except Exception as e:
+        logger.error(f"Error obteniendo datos recientes: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error obteniendo datos recientes"
+        )
 
 @app.get("/data/{device_id}")
 async def get_device_data(device_id: str, limit: int = 100, hours: float = None, days: int = None):

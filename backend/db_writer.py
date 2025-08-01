@@ -128,6 +128,29 @@ class LocalPostgresClient:
         except Exception as e:
             logger.error(f"Error obteniendo todos los datos por días desde base local: {e}")
             return []
+
+    def execute_query(self, query: str, params: tuple = None) -> List[Dict]:
+        """Ejecutar una consulta SQL personalizada y devolver los resultados"""
+        if not self.conn:
+            return []
+        try:
+            with self.conn.cursor() as cur:
+                if params:
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
+                columns = [desc[0] for desc in cur.description]
+                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+                
+                # Convertir timestamps a string para serialización
+                for row in data:
+                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
+                        row['timestamp'] = row['timestamp'].isoformat()
+                        
+            return data
+        except Exception as e:
+            logger.error(f"Error ejecutando consulta personalizada: {e}")
+            return []
     def get_system_events(self, limit: int = 50) -> List[Dict]:
         """Obtener los eventos recientes del sistema desde la base de datos local PostgreSQL"""
         try:
