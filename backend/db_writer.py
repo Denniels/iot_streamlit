@@ -12,6 +12,22 @@ import os
 logger = get_logger(__name__)
 
 class LocalPostgresClient:
+    """Cliente para operaciones con la base de datos local PostgreSQL"""
+    
+    def __init__(self):
+        try:
+            self.conn = psycopg2.connect(
+                dbname=os.getenv('DB_NAME', 'iot_db'),
+                user=os.getenv('DB_USER', 'iot_user'),
+                password=os.getenv('DB_PASSWORD', 'DAms15820'),
+                host=os.getenv('DB_HOST', 'localhost'),
+                port=os.getenv('DB_PORT', '5432')
+            )
+            logger.info("Conexión a la base de datos local PostgreSQL establecida (LocalPostgresClient)")
+        except Exception as e:
+            logger.error(f"Error conectando a la base de datos local PostgreSQL: {e}")
+            self.conn = None
+            self.client = None
 
     def get_recent_data(self, device_id: str, limit: int = 100) -> List[Dict]:
         """Obtener los datos más recientes de un dispositivo desde la base de datos local PostgreSQL"""
@@ -151,8 +167,11 @@ class LocalPostgresClient:
         except Exception as e:
             logger.error(f"Error ejecutando consulta personalizada: {e}")
             return []
+
     def get_system_events(self, limit: int = 50) -> List[Dict]:
         """Obtener los eventos recientes del sistema desde la base de datos local PostgreSQL"""
+        if not self.conn:
+            return []
         try:
             with self.conn.cursor() as cur:
                 cur.execute("SELECT * FROM system_events ORDER BY timestamp DESC LIMIT %s;", (limit,))
@@ -162,10 +181,12 @@ class LocalPostgresClient:
         except Exception as e:
             logger.error(f"Error obteniendo eventos del sistema desde la base local: {e}")
             return []
-    """Cliente para operaciones con la base de datos local PostgreSQL"""
     
-    def __init__(self):
+    def _reconnect(self):
+        """Reconectar a la base de datos cuando hay errores de transacción"""
         try:
+            if self.conn:
+                self.conn.close()
             self.conn = psycopg2.connect(
                 dbname=os.getenv('DB_NAME', 'iot_db'),
                 user=os.getenv('DB_USER', 'iot_user'),
@@ -173,12 +194,13 @@ class LocalPostgresClient:
                 host=os.getenv('DB_HOST', 'localhost'),
                 port=os.getenv('DB_PORT', '5432')
             )
-            logger.info("Conexión a la base de datos local PostgreSQL establecida (LocalPostgresClient)")
+            logger.info("Reconexión a la base de datos local PostgreSQL establecida")
+            return True
         except Exception as e:
-            logger.error(f"Error conectando a la base de datos local PostgreSQL: {e}")
+            logger.error(f"Error reconectando a la base de datos local PostgreSQL: {e}")
             self.conn = None
-            self.client = None
-    
+            return False
+
     def register_device(self, device_data: Dict[str, Any]) -> bool:
         """Registrar o actualizar un dispositivo en la base de datos local PostgreSQL"""
         if not self.conn:
@@ -229,25 +251,6 @@ class LocalPostgresClient:
                         return True
                     except Exception as e2:
                         logger.error(f"Error tras reconexión registrando dispositivo: {e2}")
-            return False
-    
-    def _reconnect(self):
-        """Reconectar a la base de datos cuando hay errores de transacción"""
-        try:
-            if self.conn:
-                self.conn.close()
-            self.conn = psycopg2.connect(
-                dbname=os.getenv('DB_NAME', 'iot_db'),
-                user=os.getenv('DB_USER', 'iot_user'),
-                password=os.getenv('DB_PASSWORD', 'DAms15820'),
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=os.getenv('DB_PORT', '5432')
-            )
-            logger.info("Reconexión a la base de datos local PostgreSQL establecida")
-            return True
-        except Exception as e:
-            logger.error(f"Error reconectando a la base de datos local PostgreSQL: {e}")
-            self.conn = None
             return False
 
     def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
