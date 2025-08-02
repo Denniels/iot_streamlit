@@ -1,1 +1,45 @@
-streamlit-autorefresh
+# ====================================
+# REQUIREMENTS.TXT COMPLETO
+# Todas las dependencias necesarias para Streamlit Cloud
+# ====================================
+
+# === STREAMLIT Y COMPONENTES DE UI ===
+streamlit>=1.28.1
+streamlit-autorefresh>=0.0.1
+
+# === VISUALIZACIÓN Y ANÁLISIS DE DATOS ===
+plotly>=5.17.0
+pandas>=2.1.1
+
+# === APIs Y COMUNICACIÓN WEB ===
+requests>=2.31.0
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.4.2
+python-multipart>=0.0.6
+
+# === BASE DE DATOS ===
+psycopg2-binary>=2.9.7
+#supabase>=2.0.2
+
+# === CONFIGURACIÓN Y VARIABLES DE ENTORNO ===
+python-dotenv>=1.0.0
+toml>=0.10.2
+
+# === COMUNICACIÓN SERIAL Y HARDWARE ===
+pyserial>=3.5
+
+# === PROTOCOLOS INDUSTRIALES ===
+pymodbus>=3.5.2
+
+# === FECHA Y TIEMPO ===
+python-dateutil>=2.8.2
+
+# === NETWORKING ===
+netifaces>=0.11.0
+
+# === ASYNC ===
+asyncio-mqtt>=0.16.1
+
+# === UTILIDADES ESTÁNDAR ===
+# json, os, sys, time, datetime, threading - incluidos en Python estándar
