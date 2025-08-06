@@ -384,9 +384,10 @@ class ArduinoDetector:
                                 'device_id': device_id,
                                 'device_type': 'esp32_wifi',
                                 'name': f'ESP32 WiFi {ip}',
-                                'ip_address': ip,
+                                'ip_address': ip,  # Guardar IP correctamente
+                                'port': 80,       # Guardar puerto
                                 'status': 'online',
-                                'metadata': {'protocol': 'http', 'port': 80}
+                                'metadata': {'protocol': 'http', 'port': 80, 'ip': ip}
                             }
                             
                             self.db_client.register_device(device_data)

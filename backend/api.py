@@ -191,27 +191,39 @@ async def get_system_status():
 
 @app.get("/devices", response_model=ApiResponse)
 async def get_devices():
-    """Obtener lista de todos los dispositivos detectados"""
+    """Obtener lista de dispositivos con datos de sensores únicamente"""
     try:
         db_client = LocalPostgresClient()
         devices = db_client.get_devices()
         
-        # Formatear información de dispositivos
+        # Filtrar solo dispositivos que tienen datos de sensores
+        sensor_device_types = ['arduino_ethernet', 'esp32_wifi', 'arduino_usb', 'modbus_device']
+        
+        # Formatear información de dispositivos con sensores
         formatted_devices = []
         for device in devices:
-            formatted_devices.append({
-                'device_id': device.get('device_id'),
-                'device_type': device.get('device_type'),
-                'ip_address': device.get('ip_address'),
-                'port': device.get('port'),
-                'status': device.get('status'),
-                'last_seen': device.get('last_seen'),
-                'description': device.get('description')
-            })
+            device_type = device.get('device_type')
+            device_id = device.get('device_id')
+            
+            # Solo incluir dispositivos que pueden tener sensores
+            if device_type in sensor_device_types:
+                # Verificar que el dispositivo tiene datos recientes
+                recent_data = db_client.get_recent_data(device_id, limit=1)
+                
+                formatted_devices.append({
+                    'device_id': device_id,
+                    'device_type': device_type,
+                    'ip_address': device.get('ip_address'),
+                    'port': device.get('port'),
+                    'status': device.get('status'),
+                    'last_seen': device.get('last_seen'),
+                    'description': device.get('description'),
+                    'has_data': len(recent_data) > 0
+                })
         
         return ApiResponse(
             success=True,
-            message=f"{len(formatted_devices)} dispositivos encontrados",
+            message=f"{len(formatted_devices)} dispositivos con sensores encontrados",
             data=formatted_devices,
             timestamp=datetime.now()
         )

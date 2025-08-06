@@ -80,22 +80,34 @@ class DataAcquisition:
             
             for device in network_devices:
                 try:
+                    device_id = device.get('device_id')
+                    device_type = device.get('device_type')
                     ip = device.get('ip_address')
-                    port = device.get('metadata', {}).get('port', 80)
+                    
+                    # Fallback: si no hay IP guardada, intentar encontrar por device_id conocido
+                    if not ip:
+                        if device_id == 'esp32_wifi_001':
+                            ip = '192.168.0.110'  # IP conocida del ESP32
+                        elif device_id == 'arduino_eth_001':
+                            ip = '192.168.0.109'  # IP conocida del Arduino Ethernet
                     
                     if ip:
                         # Usar método genérico para leer datos de red
-                        if device.get('device_type') == 'esp32_wifi':
+                        if device_type == 'esp32_wifi':
                             data = self.arduino_detector.read_esp32_data(ip)
                         else:
+                            port = device.get('port', 80)
                             data = self.arduino_detector.read_ethernet_data(ip, port)
                         
                         if data:
                             collected_data['network_devices'].append({
-                                'device_id': device['device_id'],
-                                'device_type': device['device_type'],
+                                'device_id': device_id,
+                                'device_type': device_type,
                                 'data': data
                             })
+                    else:
+                        logger.warning(f"Dispositivo {device_id} sin IP configurada")
+                        
                 except Exception as e:
                     error = f"Error leyendo {device.get('device_id')}: {e}"
                     logger.error(error)
