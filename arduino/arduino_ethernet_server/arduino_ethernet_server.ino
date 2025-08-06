@@ -1,10 +1,10 @@
 // Arduino Ethernet - 2 sondas NTC de temperatura
 // Hardware: Arduino Uno/Nano/Mega + Ethernet Shield + 2x NTC 10kΩ
-// Conexión: 5V--NTC(10kΩ)--A0--R(10kΩ)--GND
-//           5V--NTC(10kΩ)--A1--R(10kΩ)--GND
+// Conexión: 5V--R(10kΩ)--A0--NTC(10kΩ)--GND (PULL-DOWN)
+//           5V--R(10kΩ)--A1--NTC(10kΩ)--GND (PULL-DOWN)
 // Endpoints: /data, /status
 //
-// IMPORTANTE: NTC está en la parte SUPERIOR del divisor
+// IMPORTANTE: NTC está en la parte INFERIOR del divisor (PULL-DOWN)
 // - Temperatura ↑ → Resistencia NTC ↓ → Voltaje A0/A1 ↑ → Lectura ADC ↑
 // - Temperatura ↓ → Resistencia NTC ↑ → Voltaje A0/A1 ↓ → Lectura ADC ↓
 
@@ -14,10 +14,10 @@
 
 // Configuración de red
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC única para cada Arduino
-IPAddress ip(192, 168, 1, 100);     // IP estática en tu red
-IPAddress gateway(192, 168, 1, 1);   // Gateway de tu red
+IPAddress ip(192, 168, 0, 107);     // IP estática en tu red 192.168.0.x
+IPAddress gateway(192, 168, 0, 1);   // Gateway de tu red
 IPAddress subnet(255, 255, 255, 0);  // Máscara de subred
-IPAddress dns(192, 168, 1, 1);       // DNS server
+IPAddress dns(192, 168, 0, 1);       // DNS server
 
 // Para DHCP (comentar las líneas IP estática si usas DHCP)
 // bool useDHCP = true;
@@ -54,19 +54,34 @@ struct SensorData {
 SensorData lastReading;
 
 void setup() {
+  Serial.begin(9600);
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
   analogReference(DEFAULT);
   
-  // Intentar DHCP primero, si falla usar IP estática
+  Serial.println("Iniciando Arduino Ethernet...");
+  
+  // Intentar DHCP primero con más tiempo
+  Serial.println("Intentando DHCP...");
   if (Ethernet.begin(mac) == 0) {
+    Serial.println("DHCP falló, usando IP estática...");
     // DHCP falló, configurar IP estática
     Ethernet.begin(mac, ip, dns, gateway, subnet);
+  } else {
+    Serial.println("DHCP exitoso!");
   }
   
-  delay(2000); // Dar más tiempo para inicializar
+  delay(5000); // Más tiempo para inicializar
+  
+  // Mostrar IP obtenida
+  Serial.print("IP asignada: ");
+  Serial.println(Ethernet.localIP());
+  
   server.begin();
   networkReady = true;
+  
+  Serial.println("Servidor HTTP iniciado en puerto 80");
+  Serial.println("Endpoints disponibles: /data, /status");
 }
 
 void loop() {
@@ -143,8 +158,8 @@ SensorData readSensors() {
   data.temperature1 = readNTCTemperature(NTC1_PIN);
   data.temperature2 = readNTCTemperature(NTC2_PIN);
   
-  // Voltaje de alimentación
-  data.voltage = readVccVoltage();
+  // Voltaje fijo por ahora
+  data.voltage = 5.0;
   
   // Uptime
   data.uptime = millis();
@@ -167,8 +182,8 @@ float readNTCTemperature(int pin) {
     return -998.0; // Error: circuito abierto
   }
   
-  // CORRECCIÓN: Para configuración 5V--NTC--A0--R(10kΩ)--GND
-  // El NTC está en la parte superior del divisor de voltaje
+  // CORRECCIÓN: Para configuración PULL-DOWN: 5V--R(10kΩ)--A0--NTC(10kΩ)--GND
+  // El NTC está en la parte INFERIOR del divisor de voltaje (pull-down)
   float resistance = SERIES_RESISTOR * (rawADC / (1023.0 - rawADC));
   
   // Ecuación de Steinhart-Hart simplificada (aproximación B parameter)
@@ -189,25 +204,22 @@ float readNTCTemperature(int pin) {
 }
 
 void sendSensorData(EthernetClient client) {
-  StaticJsonDocument<150> doc;
+  StaticJsonDocument<100> doc;
   
   doc["message_type"] = "sensor_data";
   doc["device_id"] = deviceId;
-  doc["device_type"] = deviceType;
   doc["timestamp"] = millis();
   doc["status"] = lastReading.status;
   
-  // Datos de sensores
+  // Datos de sensores (nombres más cortos)
   JsonObject sensors = doc.createNestedObject("sensors");
-  sensors["temperature_1"] = round(lastReading.temperature1 * 10) / 10.0;
-  sensors["temperature_2"] = round(lastReading.temperature2 * 10) / 10.0;
+  sensors["t1"] = round(lastReading.temperature1 * 10) / 10.0;
+  sensors["t2"] = round(lastReading.temperature2 * 10) / 10.0;
   
   // Temperatura promedio
   if (lastReading.temperature1 > -100 && lastReading.temperature2 > -100) {
     float avgTemp = (lastReading.temperature1 + lastReading.temperature2) / 2.0;
-    sensors["temperature_avg"] = round(avgTemp * 10) / 10.0;
-  } else {
-    sensors["temperature_avg"] = -1;
+    sensors["avg"] = round(avgTemp * 10) / 10.0;
   }
   
   String jsonString;
@@ -217,17 +229,12 @@ void sendSensorData(EthernetClient client) {
 }
 
 void sendStatusData(EthernetClient client) {
-  StaticJsonDocument<100> doc;
+  StaticJsonDocument<80> doc;
   
   doc["message_type"] = "status";
   doc["device_id"] = deviceId;
-  doc["device_type"] = deviceType;
   doc["timestamp"] = millis();
   doc["status"] = "online";
-  char ipStr[16];
-  IPAddress ip = Ethernet.localIP();
-  sprintf(ipStr, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-  doc["ip_address"] = ipStr;
   
   String jsonString;
   serializeJson(doc, jsonString);
@@ -247,7 +254,8 @@ void sendNotFound(EthernetClient client) {
 }
 
 void sendHttpResponse(EthernetClient client, int statusCode, String contentType, String body) {
-  client.print("HTTP/1.1 ");
+  // Enviar headers HTTP/1.0 para simplicidad
+  client.print("HTTP/1.0 ");
   client.print(statusCode);
   if (statusCode == 200) {
     client.println(" OK");
@@ -258,11 +266,11 @@ void sendHttpResponse(EthernetClient client, int statusCode, String contentType,
   client.print("Content-Type: ");
   client.println(contentType);
   client.println("Connection: close");
-  client.print("Content-Length: ");
-  client.println(body.length());
-  client.println();
+  client.println(); // Línea vacía antes del body
   
+  // Enviar todo el body de una vez
   client.print(body);
+  client.flush(); // Asegurar que todo se envíe
 }
 
 // Función para obtener memoria libre
@@ -297,7 +305,7 @@ float readVccVoltage() {
 }
 
 // Configuración: Cambia IP/MAC/device_id si tienes varios Arduinos
-// Red: 192.168.1.x - El Arduino usará IP 192.168.1.100
-// NTC1: 5V--NTC--A0--R(10kΩ)--GND | NTC2: 5V--NTC--A1--R(10kΩ)--GND
+// Red: 192.168.0.x - El Arduino usará IP 192.168.0.107
+// NTC1: 5V--R(10kΩ)--A0--NTC(10kΩ)--GND | NTC2: 5V--R(10kΩ)--A1--NTC(10kΩ)--GND (PULL-DOWN)
 // Endpoints: /data, /status
-// Acceso: http://192.168.1.100/data
+// Acceso: http://192.168.0.107/data

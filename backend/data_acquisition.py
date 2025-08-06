@@ -25,17 +25,10 @@ class DataAcquisition:
         self.data_cache = {}
     
     def initialize_devices(self):
-        """Inicializar y detectar todos los dispositivos"""
-        logger.info("Iniciando detección de dispositivos...")
+        """Inicializar y detectar todos los dispositivos - SOLO RED, NO USB"""
+        logger.info("Iniciando detección de dispositivos de red...")
         
-        # 1. Detectar Arduino USB
-        try:
-            if self.arduino_detector.detect_usb_arduino():
-                logger.info("Arduino USB inicializado")
-        except Exception as e:
-            logger.error(f"Error inicializando Arduino USB: {e}")
-        
-        # 2. Escanear red para dispositivos generales
+        # Solo escanear red para dispositivos (incluye ESP32 WiFi y Arduino Ethernet)
         try:
             discovered_devices = self.device_scanner.scan_network()
             logger.info(f"{len(discovered_devices)} dispositivos de red encontrados")
@@ -43,14 +36,21 @@ class DataAcquisition:
             logger.error(f"Error escaneando red: {e}")
             discovered_devices = []
         
-        # 3. Detectar Arduinos Ethernet
+        # Detectar Arduinos Ethernet específicamente
         try:
             ethernet_arduinos = self.arduino_detector.detect_ethernet_arduinos()
             logger.info(f"{len(ethernet_arduinos)} Arduinos Ethernet encontrados")
         except Exception as e:
             logger.error(f"Error detectando Arduinos Ethernet: {e}")
         
-        # 4. Detectar dispositivos Modbus
+        # Detectar dispositivos ESP32 WiFi específicamente
+        try:
+            esp32_devices = self.arduino_detector.detect_esp32_wifi()
+            logger.info(f"{len(esp32_devices)} ESP32 WiFi encontrados")
+        except Exception as e:
+            logger.error(f"Error detectando ESP32 WiFi: {e}")
+        
+        # Detectar dispositivos Modbus
         try:
             # Obtener IPs de dispositivos descubiertos para escaneo Modbus
             ip_list = [device.get('ip_address') for device in discovered_devices 
@@ -65,40 +65,35 @@ class DataAcquisition:
         logger.info("Inicialización de dispositivos completada")
     
     def collect_all_data(self) -> Dict[str, Any]:
-        """Recopilar datos de todos los dispositivos"""
+        """Recopilar datos de todos los dispositivos - SOLO RED, NO USB"""
         collected_data = {
             'timestamp': datetime.now(timezone.utc).isoformat(),  # Siempre UTC ISO8601
-            'arduino_usb': None,
-            'arduino_ethernet': [],
+            'network_devices': [],
             'modbus_devices': {},
             'errors': []
         }
         
-        # 1. Leer datos Arduino USB
-        try:
-            usb_data = self.arduino_detector.read_usb_data()
-            if usb_data:
-                collected_data['arduino_usb'] = usb_data
-        except Exception as e:
-            error = f"Error leyendo Arduino USB: {e}"
-            logger.error(error)
-            collected_data['errors'].append(error)
-        
-        # 2. Leer datos Arduinos Ethernet
+        # Leer datos de dispositivos de red (Arduino Ethernet y ESP32 WiFi)
         try:
             devices = self.db_client.get_devices()
-            ethernet_devices = [d for d in devices if d.get('device_type') == 'arduino_ethernet']
+            network_devices = [d for d in devices if d.get('device_type') in ['arduino_ethernet', 'esp32_wifi']]
             
-            for device in ethernet_devices:
+            for device in network_devices:
                 try:
                     ip = device.get('ip_address')
-                    port = device.get('port')
+                    port = device.get('metadata', {}).get('port', 80)
                     
-                    if ip and port:
-                        data = self.arduino_detector.read_ethernet_data(ip, port)
+                    if ip:
+                        # Usar método genérico para leer datos de red
+                        if device.get('device_type') == 'esp32_wifi':
+                            data = self.arduino_detector.read_esp32_data(ip)
+                        else:
+                            data = self.arduino_detector.read_ethernet_data(ip, port)
+                        
                         if data:
-                            collected_data['arduino_ethernet'].append({
+                            collected_data['network_devices'].append({
                                 'device_id': device['device_id'],
+                                'device_type': device['device_type'],
                                 'data': data
                             })
                 except Exception as e:
@@ -107,11 +102,11 @@ class DataAcquisition:
                     collected_data['errors'].append(error)
         
         except Exception as e:
-            error = f"Error procesando Arduinos Ethernet: {e}"
+            error = f"Error procesando dispositivos de red: {e}"
             logger.error(error)
             collected_data['errors'].append(error)
         
-        # 3. Leer datos dispositivos Modbus
+        # Leer datos dispositivos Modbus
         try:
             modbus_data = self.modbus_scanner.read_all_modbus_devices()
             collected_data['modbus_devices'] = modbus_data
@@ -124,10 +119,7 @@ class DataAcquisition:
         self.data_cache = collected_data
         
         # Log resumen
-        total_points = 0
-        if collected_data['arduino_usb']:
-            total_points += 1
-        total_points += len(collected_data['arduino_ethernet'])
+        total_points = len(collected_data['network_devices'])
         total_points += sum(len(data) for data in collected_data['modbus_devices'].values())
         
         logger.debug(f"Datos recopilados: {total_points} puntos de datos")

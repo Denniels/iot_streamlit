@@ -362,7 +362,7 @@ class IoTDashboard:
             return
 
         # Mostrar información del dispositivo
-        device_type = "🔌 USB" if "usb" in selected_device.lower() else "🌐 Ethernet" if "ethernet" in selected_device.lower() else "❓ Desconocido"
+        device_type = "� ESP32 WiFi" if "esp32" in selected_device.lower() else "🌐 Ethernet" if "ethernet" in selected_device.lower() else "🔗 Red" if "net_device" in selected_device.lower() else "❓ Desconocido"
         st.write(f"{device_type} **{selected_device}** - {len(df_device)} registros (últimos 10 min)")
 
         # Mostrar tabla principal filtrada

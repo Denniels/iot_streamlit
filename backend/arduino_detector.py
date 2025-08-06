@@ -316,6 +316,15 @@ class ArduinoDetector:
         }
         return unit_map.get(sensor_name, '')
     
+    def _get_esp32_sensor_unit(self, sensor_name: str) -> str:
+        """Obtener unidad para sensores ESP32"""
+        unit_map = {
+            'ntc_entrada': '°C',
+            'ntc_salida': '°C', 
+            'ldr': '%'
+        }
+        return unit_map.get(sensor_name, '')
+    
     def send_command(self, command: str) -> Optional[Dict[str, Any]]:
         """Enviar comando al Arduino y esperar respuesta"""
         if not self.usb_connection or not self.usb_connection.is_open:
@@ -348,8 +357,86 @@ class ArduinoDetector:
             logger.error(f"❌ Error enviando comando '{command}': {e}")
             return None
     
-    def detect_ethernet_arduinos(self, network_range: str = "192.168.1") -> List[Dict]:
-        """Detectar Arduinos conectados por Ethernet"""
+    def detect_esp32_wifi(self, network_range: str = "192.168.0") -> List[Dict]:
+        """Detectar ESP32 conectados por WiFi"""
+        detected = []
+        
+        try:
+            # Escanear red en busca de ESP32 WiFi
+            import requests
+            
+            for i in range(1, 255):
+                ip = f"{network_range}.{i}"
+                
+                try:
+                    # Probar endpoint /data específico del ESP32
+                    response = requests.get(f'http://{ip}/data', timeout=2)
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # Verificar que es un ESP32 con sensores
+                        if (data.get('device_id') and 'esp32' in str(data.get('device_id')).lower() and
+                            'sensors' in data):
+                            
+                            device_id = data.get('device_id')
+                            
+                            device_data = {
+                                'device_id': device_id,
+                                'device_type': 'esp32_wifi',
+                                'name': f'ESP32 WiFi {ip}',
+                                'ip_address': ip,
+                                'status': 'online',
+                                'metadata': {'protocol': 'http', 'port': 80}
+                            }
+                            
+                            self.db_client.register_device(device_data)
+                            self.db_client.log_system_event('device_connected', device_id, f'ESP32 WiFi detectado en {ip}')
+                            
+                            detected.append(device_data)
+                            logger.info(f"✅ ESP32 WiFi detectado: {device_id} en {ip}")
+                
+                except Exception:
+                    continue
+            
+            return detected
+            
+        except Exception as e:
+            logger.error(f"Error escaneando ESP32 WiFi: {e}")
+            return []
+    
+    def read_esp32_data(self, ip: str) -> Optional[Dict[str, Any]]:
+        """Leer datos específicos de ESP32 WiFi"""
+        try:
+            import requests
+            
+            response = requests.get(f'http://{ip}/data', timeout=3)
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data and 'sensors' in data:
+                    device_id = data.get('device_id', f"esp32_wifi_{ip.replace('.', '_')}")
+                    
+                    # Insertar cada sensor por separado
+                    for sensor_name, value in data['sensors'].items():
+                        sensor_data_clean = {
+                            'device_id': device_id,
+                            'sensor_type': sensor_name,
+                            'value': value,
+                            'unit': self._get_esp32_sensor_unit(sensor_name),
+                            'raw_data': data,
+                            'timestamp': datetime.now(timezone.utc).isoformat()
+                        }
+                        
+                        self.db_client.insert_sensor_data(sensor_data_clean)
+                    
+                    logger.debug(f"📊 Datos ESP32: {data['sensors']}")
+                    return data
+                    
+        except Exception as e:
+            logger.error(f"Error leyendo datos ESP32 {ip}: {e}")
+            return None
+    
+    def detect_ethernet_arduinos(self, network_range: str = "192.168.0") -> List[Dict]:
         detected = []
         
         try:
