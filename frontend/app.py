@@ -76,9 +76,9 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
-# Usar la última URL pública conocida (actualizada el 06/08/2025 - 13:00)
+# Usar la última URL pública conocida (actualizada el 01/08/2025 - 16:45)
 # URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://assistance-mill-wma-fda.trycloudflare.com"
+DEFAULT_CF_URL = "https://appointments-roman-drawn-collect.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
@@ -346,9 +346,9 @@ class IoTDashboard:
         #     st.write(f"🕐 Cargando datos para: {rango_seleccionado}")
         #     data = self.get_sensor_data_by_time_range(selected_device, time_range)
         
-        # --- Cargar datos recientes (última hora) para mostrar datos después de reinicios ---
-        st.write("🕐 Cargando datos recientes (última hora)")
-        data = self.get_sensor_data_by_time_range(selected_device, "today")
+        # --- Solo cargar datos recientes (últimos 10 min) para evitar sobrecarga ---
+        st.write("🕐 Cargando datos recientes (últimos 10 min)")
+        data = self.get_sensor_data_by_time_range(selected_device, "real_time")
         
         if not data:
             st.error(f"No se pueden cargar los datos desde la API Jetson para el dispositivo {selected_device}")
