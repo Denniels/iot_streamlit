@@ -35,10 +35,13 @@ def main():
     acquisition.initialize_devices()
     
     logger.info("🚀 Iniciando bucle de adquisición de datos...")
+    print("🚀 Iniciando bucle de adquisición de datos...")
     print("Adquiriendo datos... (Ctrl+C para detener)")
     
     try:
         # Usar adquisición continua cada 10 segundos
+        logger.info("📊 Entrando en bucle continuo de adquisición...")
+        print("📊 Entrando en bucle continuo de adquisición...")
         acquisition.start_continuous_acquisition(interval=10)
     except KeyboardInterrupt:
         print("\nAdquisición detenida por el usuario.")

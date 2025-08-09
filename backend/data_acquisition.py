@@ -37,18 +37,24 @@ class DataAcquisition:
             discovered_devices = []
         
         # Detectar Arduinos Ethernet específicamente
+        logger.info("🔍 Iniciando detección específica de Arduinos Ethernet...")
         try:
             ethernet_arduinos = self.arduino_detector.detect_ethernet_arduinos()
-            logger.info(f"{len(ethernet_arduinos)} Arduinos Ethernet encontrados")
+            logger.info(f"✅ {len(ethernet_arduinos)} Arduinos Ethernet encontrados")
+            for arduino in ethernet_arduinos:
+                logger.info(f"  📡 Arduino Ethernet: {arduino.get('device_id')} en {arduino.get('ip_address')}")
         except Exception as e:
-            logger.error(f"Error detectando Arduinos Ethernet: {e}")
+            logger.error(f"❌ Error detectando Arduinos Ethernet: {e}")
         
         # Detectar dispositivos ESP32 WiFi específicamente
+        logger.info("🔍 Iniciando detección específica de ESP32 WiFi...")
         try:
             esp32_devices = self.arduino_detector.detect_esp32_wifi()
-            logger.info(f"{len(esp32_devices)} ESP32 WiFi encontrados")
+            logger.info(f"✅ {len(esp32_devices)} ESP32 WiFi encontrados")
+            for esp32 in esp32_devices:
+                logger.info(f"  📡 ESP32 WiFi: {esp32.get('device_id')} en {esp32.get('ip_address')}")
         except Exception as e:
-            logger.error(f"Error detectando ESP32 WiFi: {e}")
+            logger.error(f"❌ Error detectando ESP32 WiFi: {e}")
         
         # Detectar dispositivos Modbus
         try:
