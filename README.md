@@ -241,3 +241,13 @@ psql -h <host_supabase> -U <usuario_supabase> -d <bd_supabase> -f schema.sql
 
 ### 4. Actualizar la configuración de conexión en tu app
 Modifica las variables de entorno o el archivo de configuración de tu backend para que apunten a la base de datos de Supabase.
+
+## ⚠️ Aviso de derechos reservados
+
+Este repositorio está disponible públicamente únicamente para fines de demostración de la aplicación desplegada en Streamlit Cloud.
+
+Todo el código fuente, documentación y activos incluidos están protegidos por derechos de autor. No se permite su uso, copia, modificación ni distribución sin autorización explícita del autor.
+
+🔒 Este proyecto **no está licenciado** bajo ninguna licencia de software libre o de código abierto.
+
+📩 Si deseas colaborar, acceder al código con fines educativos o comerciales, contáctame directamente.
