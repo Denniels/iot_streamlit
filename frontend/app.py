@@ -159,6 +159,25 @@ class IoTDashboard:
                 data = resp.json()
                 result_data = data.get('data', [])
                 st.write(f"✅ **API Response:** Recibidos {len(result_data)} registros")
+
+                # Fallback automático: si la ventana en tiempo real devuelve muy pocos
+                # registros, reintentar con 1 hora para poblar gráficos (UX friendly).
+                try:
+                    sent_hours = params.get('hours') if isinstance(params, dict) else None
+                    if sent_hours is not None:
+                        # si recibimos <=3 puntos en 10min, ampliar a 1h
+                        if len(result_data) <= 3 and float(sent_hours) < 1.0:
+                            st.write("ℹ️ Pocos registros en ventana corta, reintentando con 1 hora...")
+                            params['hours'] = 1.0
+                            resp2 = requests.get(url, params=params, timeout=10)
+                            if resp2.status_code == 200:
+                                data2 = resp2.json()
+                                result_data = data2.get('data', [])
+                                st.write(f"✅ **API Response (fallback 1h):** Recibidos {len(result_data)} registros")
+                except Exception:
+                    # No bloquear la experiencia si falla el fallback
+                    pass
+
                 return result_data
             else:
                 st.error(f"❌ Error consultando API: {resp.status_code} {resp.text}")

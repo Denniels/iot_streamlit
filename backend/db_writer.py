@@ -207,19 +207,37 @@ class LocalPostgresClient:
             return False
         try:
             with self.conn.cursor() as cur:
-                # Intentar insertar, si existe actualizarlo
+                # Preparar metadata JSON si viene como dict
+                metadata = device_data.get('metadata')
+                try:
+                    metadata_json = json.dumps(metadata) if isinstance(metadata, dict) else metadata
+                except Exception:
+                    metadata_json = None
+
+                # Intentar insertar, si existe actualizarlo (incluir ip_address/port/name/metadata)
                 cur.execute("""
-                    INSERT INTO devices (device_id, device_type, status, last_seen)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO devices (
+                        device_id, device_type, name, ip_address, port, status, metadata, last_seen, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, NOW()), NOW())
                     ON CONFLICT (device_id) DO UPDATE SET
                         device_type = EXCLUDED.device_type,
+                        name = EXCLUDED.name,
+                        ip_address = EXCLUDED.ip_address,
+                        port = EXCLUDED.port,
                         status = EXCLUDED.status,
-                        last_seen = EXCLUDED.last_seen;
+                        metadata = EXCLUDED.metadata,
+                        last_seen = EXCLUDED.last_seen,
+                        updated_at = NOW();
                 """, (
                     device_data.get('device_id'),
                     device_data.get('device_type'),
+                    device_data.get('name'),
+                    device_data.get('ip_address'),
+                    device_data.get('port'),
                     device_data.get('status', 'online'),
-                    device_data.get('last_seen', datetime.now().isoformat())
+                    metadata_json,
+                    device_data.get('last_seen', datetime.now().isoformat()),
+                    device_data.get('created_at')
                 ))
                 self.conn.commit()
             logger.info(f"Dispositivo registrado en base local: {device_data.get('device_id')}")
@@ -233,18 +251,35 @@ class LocalPostgresClient:
                 if self._reconnect():
                     try:
                         with self.conn.cursor() as cur:
+                            metadata = device_data.get('metadata')
+                            try:
+                                metadata_json = json.dumps(metadata) if isinstance(metadata, dict) else metadata
+                            except Exception:
+                                metadata_json = None
+
                             cur.execute("""
-                                INSERT INTO devices (device_id, device_type, status, last_seen)
-                                VALUES (%s, %s, %s, %s)
+                                INSERT INTO devices (
+                                    device_id, device_type, name, ip_address, port, status, metadata, last_seen, created_at, updated_at
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, NOW()), NOW())
                                 ON CONFLICT (device_id) DO UPDATE SET
                                     device_type = EXCLUDED.device_type,
+                                    name = EXCLUDED.name,
+                                    ip_address = EXCLUDED.ip_address,
+                                    port = EXCLUDED.port,
                                     status = EXCLUDED.status,
-                                    last_seen = EXCLUDED.last_seen;
+                                    metadata = EXCLUDED.metadata,
+                                    last_seen = EXCLUDED.last_seen,
+                                    updated_at = NOW();
                             """, (
                                 device_data.get('device_id'),
                                 device_data.get('device_type'),
+                                device_data.get('name'),
+                                device_data.get('ip_address'),
+                                device_data.get('port'),
                                 device_data.get('status', 'online'),
-                                device_data.get('last_seen', datetime.now().isoformat())
+                                metadata_json,
+                                device_data.get('last_seen', datetime.now().isoformat()),
+                                device_data.get('created_at')
                             ))
                             self.conn.commit()
                         logger.info(f"Dispositivo registrado tras reconexión: {device_data.get('device_id')}")
@@ -293,14 +328,23 @@ class LocalPostgresClient:
 
         # Registrar o actualizar el dispositivo cada vez que llega un dato de sensor
         device_id = sensor_data_clean.get('device_id')
+        # Preferir device_type reportado dentro de raw_data si existe
         device_type = sensor_data_clean.get('raw_data', {}).get('device_type') or sensor_data_clean.get('device_type', 'arduino_ethernet')
         if device_id:
             try:
+                # Extraer IP/port/metadata desde raw_data si están presentes
+                raw = sensor_data_clean.get('raw_data', {}) or {}
+                ip_addr = raw.get('ip') or raw.get('ip_address')
+                port_val = raw.get('port') or sensor_data_clean.get('port')
+
                 device_data = {
                     'device_id': device_id,
                     'device_type': device_type,
                     'status': 'online',
-                    'last_seen': datetime.now().isoformat()
+                    'last_seen': datetime.now(timezone.utc).isoformat(),
+                    'ip_address': ip_addr,
+                    'port': port_val,
+                    'metadata': raw
                 }
                 self.register_device(device_data)
             except Exception as e:

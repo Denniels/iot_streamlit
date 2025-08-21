@@ -1,0 +1,13 @@
+        device_id         |  ip_address   | port |                                                                        metadata                                                                         
+--------------------------+---------------+------+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ arduino_eth_001          | 192.168.0.101 |   80 | {"status": "ok", "sensors": {"t1": 9.2, "t2": 25.6, "avg": 17.4}, "device_id": "arduino_eth_001", "timestamp": 15989501, "message_type": "sensor_data"}
+ arduino_usb_001          |               |      | {"uptime": null, "baudrate": 9600, "device_id": "arduino_usb_001"}
+ esp32_wifi_001           | 192.168.0.111 |      | {"ip": "192.168.0.111", "sensors": {"ldr": 0, "ntc_salida": 51.70763, "ntc_entrada": 34.60815}, "device_id": "esp32_wifi_001"}
+ net_device_192_168_0_1   | 192.168.0.1   |      | {"protocol": "http"}
+ net_device_192_168_0_101 | 192.168.0.101 |      | {"protocol": "http"}
+ net_device_192_168_0_102 | 192.168.0.102 |      | {"protocol": "ssh"}
+ net_device_192_168_0_109 |               |      | 
+ net_device_192_168_0_110 |               |      | 
+ net_device_192_168_0_111 | 192.168.0.111 |      | {"protocol": "http"}
+(9 rows)
+
