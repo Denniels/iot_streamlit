@@ -329,6 +329,10 @@ class IoTDashboard:
         st.markdown("### 📱 Selecciona un dispositivo para visualizar sus datos")
         device_ids = self.get_all_devices()
         st.info(f"📊 Dispositivos disponibles: {len(device_ids)}")
+        # Si no hay dispositivos online, evitar continuar y mostrar un mensaje claro
+        if not device_ids:
+            st.warning("No hay dispositivos online. Conecta un dispositivo o espera a que vuelva a estar online.")
+            return
         selected_device = st.selectbox("Dispositivo:", device_ids, key="device_selector")
 
         # --- Filtro de rango temporal DESACTIVADO (causa problemas de rendimiento en Streamlit Cloud) ---
