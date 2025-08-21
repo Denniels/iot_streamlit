@@ -119,6 +119,26 @@ class IoTDashboard:
         if 'selected_device' not in st.session_state:
             st.session_state.selected_device = None
 
+        # Enviar ping asíncrono al backend para dejar evidencia en logs/DB
+        try:
+            if API_URL:
+                def ping_backend():
+                    try:
+                        headers = {'Content-Type': 'application/json'}
+                        payload = {
+                            'origin': API_URL,
+                            'user_agent': 'streamlit-frontend'
+                        }
+                        requests.post(f"{API_URL}/debug/frontend_ping", json=payload, timeout=5)
+                    except Exception:
+                        pass
+                # No bloquear: lanzar en hilo
+                import threading
+                t = threading.Thread(target=ping_backend, daemon=True)
+                t.start()
+        except Exception:
+            pass
+
     def get_sensor_data_by_time_range(self, device_id=None, time_range="recent", hours=None, days=None):
         """
         Obtiene datos de sensores según el rango temporal especificado
@@ -209,15 +229,20 @@ class IoTDashboard:
             st.sidebar.error("Debes ingresar la URL pública de la API Jetson (Cloudflare Tunnel)")
             return []
         try:
+            # Solicitar sólo dispositivos que estén online para evitar mostrar opciones sin datos
             url = f"{API_URL}/devices"
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, params={'only_online': True}, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
                 devices = data.get('data', [])
-                device_ids = [d['device_id'] for d in devices if 'device_id' in d]
-                st.sidebar.write(f"🔍 Dispositivos detectados: {len(device_ids)}")
-                for device in device_ids:
-                    st.sidebar.write(f"  • {device}")
+                device_ids = [d['device_id'] for d in devices if 'device_id' in d and d.get('online')]
+                # Mostrar en la barra lateral sólo los dispositivos online
+                if device_ids:
+                    st.sidebar.write(f"🔍 Dispositivos online: {len(device_ids)}")
+                    for device in device_ids:
+                        st.sidebar.write(f"  • {device}")
+                else:
+                    st.sidebar.info("No hay dispositivos online en este momento.")
                 return device_ids
             else:
                 st.sidebar.error(f"❌ Error obteniendo dispositivos: {resp.status_code} {resp.text}")
