@@ -459,11 +459,29 @@ class ArduinoDetector:
         detected = []
         
         try:
+            # Construir lista de IPs a omitir: ESP32 ya conocidos
+            try:
+                known_devices = self.db_client.get_devices()
+                known_esp32_ips = set()
+                for d in known_devices:
+                    if d.get('device_type') == 'esp32_wifi' and d.get('ip_address'):
+                        ip_str = str(d.get('ip_address'))
+                        # Normalizar posible formato INET con /32
+                        if '/' in ip_str:
+                            ip_str = ip_str.split('/', 1)[0]
+                        known_esp32_ips.add(ip_str)
+            except Exception:
+                known_esp32_ips = set()
+
             # Escanear puertos comunes para Arduinos con Ethernet Shield
             common_ports = [80, 8080, 23, 1883]  # HTTP, HTTP-alt, Telnet, MQTT
             
             for i in range(1, 255):
                 ip = f"{network_range}.{i}"
+
+                # Omitir IPs que sabemos que son ESP32
+                if ip in known_esp32_ips:
+                    continue
                 
                 for port in common_ports:
                     try:
@@ -488,6 +506,12 @@ class ArduinoDetector:
                                     if response.status_code == 200:
                                         data = response.json()
                                         device_id = data.get('device_id', f"arduino_ethernet_{ip.replace('.', '_')}")
+                                        # Si en realidad es un ESP32, omitir registro como Arduino Ethernet
+                                        dev_id_lower = str(device_id).lower()
+                                        if 'esp32' in dev_id_lower or data.get('device_type') == 'esp32_wifi':
+                                            self.logger.debug(f"Omitiendo {ip}: identificado como ESP32 ({device_id})")
+                                            sock.close()
+                                            continue
                                     else:
                                         device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
                                 except:
@@ -675,12 +699,26 @@ class ArduinoDetector:
                 port = 80
 
             url = f"http://{ip}:{port}/data" if port != 80 else f"http://{ip}/data"
-            response = requests.get(url, timeout=3)
+            try:
+                response = requests.get(url, timeout=3)
+            except requests.exceptions.ReadTimeout as e:
+                # No elevar a error para evitar ruido al escanear IPs que no responden rápido
+                self.logger.debug(f"Timeout probando Arduino Ethernet en {ip}:{port} - {e}")
+                return False
+            except requests.exceptions.ConnectionError as e:
+                self.logger.debug(f"Conexión fallida probando Arduino Ethernet en {ip}:{port} - {e}")
+                return False
 
             if response.status_code == 200:
                 try:
                     data = response.json()
                 except json.JSONDecodeError:
+                    return False
+
+                # Si responde un ESP32, no es Arduino Ethernet
+                dev_id = str(data.get('device_id', '')).lower()
+                if 'esp32' in dev_id or data.get('device_type') == 'esp32_wifi':
+                    self.logger.debug(f"{ip}:{port} responde como ESP32 ({data.get('device_id')}); se omite como Arduino Ethernet")
                     return False
 
                 # Verificar que es un Arduino con sensores
@@ -690,17 +728,21 @@ class ArduinoDetector:
                     return True
 
                 # Si firmware no incluye device_type pero devuelve message_type sensor_data válido, aceptarlo
-                if (data.get('message_type') in ('sensor_data', 'sensor_data_clean') and 'sensors' in data and 'device_id' in data):
+                if (data.get('message_type') in ('sensor_data', 'sensor_data_clean') and 'sensors' in data and 'device_id' in data and 'arduino' in str(data.get('device_id','')).lower()):
                     self.logger.info(f"✅ Arduino Ethernet (sin device_type) aceptado en {ip}:{port}: {data.get('device_id')}")
                     return True
 
             return False
         except Exception as e:
             # Registrar y devolver False en caso de cualquier excepción para evitar crashes
-            try:
-                self.logger.error(f"Error probando Arduino Ethernet en {ip}:{port} - {e}")
-            except Exception:
-                logger.error(f"Error probando Arduino Ethernet en {ip}:{port} - {e}")
+            msg = str(e)
+            if 'Read timed out' in msg or 'Max retries exceeded' in msg:
+                self.logger.debug(f"Timeout/conexión al probar Arduino Ethernet en {ip}:{port} - {e}")
+            else:
+                try:
+                    self.logger.error(f"Error probando Arduino Ethernet en {ip}:{port} - {e}")
+                except Exception:
+                    logger.error(f"Error probando Arduino Ethernet en {ip}:{port} - {e}")
             return False
 
     def find_device_on_network(self, device_id: str, network_range: str = "192.168.0") -> Optional[Dict[str, Any]]:

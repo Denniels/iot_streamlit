@@ -221,11 +221,11 @@ class LocalPostgresClient:
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, NOW()), NOW())
                     ON CONFLICT (device_id) DO UPDATE SET
                         device_type = EXCLUDED.device_type,
-                        name = EXCLUDED.name,
-                        ip_address = EXCLUDED.ip_address,
-                        port = EXCLUDED.port,
+                        name = COALESCE(EXCLUDED.name, devices.name),
+                        ip_address = COALESCE(EXCLUDED.ip_address, devices.ip_address),
+                        port = COALESCE(EXCLUDED.port, devices.port),
                         status = EXCLUDED.status,
-                        metadata = EXCLUDED.metadata,
+                        metadata = COALESCE(EXCLUDED.metadata, devices.metadata),
                         last_seen = EXCLUDED.last_seen,
                         updated_at = NOW();
                 """, (
@@ -263,11 +263,11 @@ class LocalPostgresClient:
                                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, NOW()), NOW())
                                 ON CONFLICT (device_id) DO UPDATE SET
                                     device_type = EXCLUDED.device_type,
-                                    name = EXCLUDED.name,
-                                    ip_address = EXCLUDED.ip_address,
-                                    port = EXCLUDED.port,
+                                    name = COALESCE(EXCLUDED.name, devices.name),
+                                    ip_address = COALESCE(EXCLUDED.ip_address, devices.ip_address),
+                                    port = COALESCE(EXCLUDED.port, devices.port),
                                     status = EXCLUDED.status,
-                                    metadata = EXCLUDED.metadata,
+                                    metadata = COALESCE(EXCLUDED.metadata, devices.metadata),
                                     last_seen = EXCLUDED.last_seen,
                                     updated_at = NOW();
                             """, (
