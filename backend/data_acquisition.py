@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from backend.config import get_logger
+from backend.config import get_logger, Config
 from backend.db_writer import LocalPostgresClient
 from backend.arduino_detector import ArduinoDetector
 from backend.device_scanner import DeviceScanner
@@ -122,14 +122,53 @@ class DataAcquisition:
                         logger.warning(f"Fallo lectura en {device_id} ({ip}:{port}), intentando reconciliación")
                         now = time.time()
                         last = self.last_reconcile.get(device_id, 0)
-                        # throttle to 5 minutes
-                        if now - last < 300:
-                            logger.debug(f"Reconciliación omitida para {device_id} (último intento hace {int(now-last)}s)")
+                        # throttle según configuración (por defecto 300s)
+                        throttle = getattr(Config, 'RECONCILE_THROTTLE', 300)
+                        if now - last < throttle:
+                            logger.debug(f"Reconciliación omitida para {device_id} (último intento hace {int(now-last)}s, umbral={throttle}s)")
                         else:
                             self.last_reconcile[device_id] = now
                             try:
                                 netrange = self.device_scanner.get_network_range()
-                                found = self.arduino_detector.find_device_on_network(device_id, netrange)
+                                found = None
+
+                                # Intentar resolver por MAC si está presente en metadata o como ARP de la IP antigua
+                                try:
+                                    meta = device.get('metadata') or {}
+                                    if isinstance(meta, str):
+                                        import json as _json
+                                        try:
+                                            meta = _json.loads(meta)
+                                        except Exception:
+                                            meta = {}
+
+                                    mac = meta.get('mac')
+                                    if not mac and device.get('ip_address'):
+                                        try:
+                                            mac = self.arduino_detector._get_mac_for_ip(device.get('ip_address'))
+                                        except Exception:
+                                            mac = None
+
+                                    if mac:
+                                        try:
+                                            # Buscar la IP que tenga esa MAC en la subred
+                                            for i in range(1, 255):
+                                                candidate_ip = f"{netrange}.{i}"
+                                                try:
+                                                    cand_mac = self.arduino_detector._get_mac_for_ip(candidate_ip)
+                                                except Exception:
+                                                    cand_mac = None
+                                                if cand_mac and cand_mac.lower() == mac.lower():
+                                                    found = {'ip': candidate_ip, 'port': 80, 'mac': mac}
+                                                    break
+                                        except Exception:
+                                            found = None
+                                except Exception as e:
+                                    logger.debug(f"Error intentando resolver MAC para {device_id}: {e}")
+
+                                # Si no se resolvió por MAC, hacer escaneo completo
+                                if not found:
+                                    found = self.arduino_detector.find_device_on_network(device_id, netrange)
                             except Exception as e:
                                 logger.error(f"Error buscando {device_id} en la red: {e}")
                                 found = None
@@ -144,6 +183,10 @@ class DataAcquisition:
 
                                 logger.info(f"Actualizando BD: {device_id} -> {new_ip}:{new_port}")
                                 try:
+                                    metadata = {'ip': new_ip, 'port': new_port}
+                                    if found.get('mac'):
+                                        metadata['mac'] = found.get('mac')
+
                                     self.db_client.register_device({
                                         'device_id': device_id,
                                         'device_type': device_type,
@@ -151,7 +194,7 @@ class DataAcquisition:
                                         'ip_address': new_ip,
                                         'port': new_port,
                                         'status': 'online',
-                                        'metadata': {'ip': new_ip, 'port': new_port}
+                                        'metadata': metadata
                                     })
                                     self.db_client.log_system_event('device_reconciled', device_id, f'IP actualizada a {new_ip}:{new_port}')
                                 except Exception as e:

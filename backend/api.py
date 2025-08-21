@@ -8,7 +8,8 @@ from typing import Dict, Any, List, Optional
 
 
 import uvicorn
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import dateutil.parser
 import asyncio
 import requests
 import threading
@@ -190,7 +191,7 @@ async def get_system_status():
         )
 
 @app.get("/devices", response_model=ApiResponse)
-async def get_devices():
+async def get_devices(only_online: bool = False):
     """Obtener lista de dispositivos con datos de sensores únicamente"""
     try:
         db_client = LocalPostgresClient()
@@ -198,7 +199,7 @@ async def get_devices():
         
         # Filtrar solo dispositivos que tienen datos de sensores
         sensor_device_types = ['arduino_ethernet', 'esp32_wifi', 'arduino_usb', 'modbus_device']
-        
+
         # Formatear información de dispositivos con sensores
         formatted_devices = []
         for device in devices:
@@ -210,21 +211,65 @@ async def get_devices():
                 # Verificar que el dispositivo tiene datos recientes
                 recent_data = db_client.get_recent_data(device_id, limit=1)
                 
-                formatted_devices.append({
+                # Normalizar y formatear campos para la respuesta JSON
+                ip_raw = device.get('ip_address')
+                try:
+                    ip_addr = str(ip_raw) if ip_raw is not None else None
+                except Exception:
+                    ip_addr = None
+
+                # Preparar estructura básica
+                dev = {
                     'device_id': device_id,
                     'device_type': device_type,
-                    'ip_address': device.get('ip_address'),
+                    'ip_address': ip_addr,
                     'port': device.get('port'),
                     'status': device.get('status'),
-                    'last_seen': device.get('last_seen'),
                     'description': device.get('description'),
-                    'has_data': len(recent_data) > 0
-                })
+                    'has_data': len(recent_data) > 0,
+                    'last_seen': None,
+                    'online': False
+                }
+
+                # Determinar si el dispositivo está 'online' según last_seen (configurable)
+                try:
+                    last_seen_raw = device.get('last_seen')
+                    last_dt = None
+                    if last_seen_raw:
+                        if isinstance(last_seen_raw, str):
+                            try:
+                                last_dt = dateutil.parser.isoparse(last_seen_raw)
+                            except Exception:
+                                last_dt = None
+                        elif isinstance(last_seen_raw, datetime):
+                            last_dt = last_seen_raw
+
+                    if last_dt:
+                        # Asegurar tz-aware
+                        if last_dt.tzinfo is None:
+                            last_dt = last_dt.replace(tzinfo=timezone.utc)
+                        now = datetime.now(timezone.utc)
+                        dev['online'] = (now - last_dt) <= timedelta(minutes=5)
+                        dev['last_seen'] = last_dt.isoformat()
+                    else:
+                        # Si no se pudo parsear, devolver el raw tal cual
+                        dev['last_seen'] = str(last_seen_raw) if last_seen_raw is not None else None
+                except Exception:
+                    dev['online'] = False
+                    dev['last_seen'] = str(device.get('last_seen')) if device.get('last_seen') is not None else None
+
+                formatted_devices.append(dev)
         
+        # Si se solicitó filtrar solo online, aplicar filtro
+        if only_online:
+            filtered = [d for d in formatted_devices if d.get('online')]
+        else:
+            filtered = formatted_devices
+
         return ApiResponse(
             success=True,
-            message=f"{len(formatted_devices)} dispositivos con sensores encontrados",
-            data=formatted_devices,
+            message=f"{len(filtered)} dispositivos con sensores encontrados",
+            data=filtered,
             timestamp=datetime.now()
         )
         
@@ -332,6 +377,15 @@ async def get_device_data(device_id: str, limit: int = 100, hours: float = None,
             # Consulta por horas
             data = db_client.get_data_by_hours(device_id, hours)
             time_desc = f"últimas {hours} horas"
+
+            # Fallback robusto: si la ventana corta devuelve muy pocos puntos,
+            # reintentar con 1 hora para garantizar visualización en tiempo real.
+            try:
+                if isinstance(hours, (int, float)) and float(hours) < 1.0 and (not data or len(data) <= 3):
+                    data = db_client.get_data_by_hours(device_id, 1.0)
+                    time_desc = "última 1 hora (fallback)"
+            except Exception:
+                pass
         elif days is not None:
             # Consulta por días  
             data = db_client.get_data_by_days(device_id, days)
@@ -455,6 +509,36 @@ async def collect_data_now():
             status_code=500,
             detail="Error recopilando datos"
         )
+
+
+@app.post("/debug/frontend_ping")
+async def frontend_ping(request: dict = None):
+    """Endpoint usado por frontend para dejar evidencia de que la UI está viva y llamó al backend.
+    Registra un evento en la tabla system_events con IP y user-agent.
+    """
+    try:
+        db_client = LocalPostgresClient()
+        # Intentar obtener información del request desde FastAPI (headers en starlette)
+        from fastapi import Request
+        # Si el caller envía un JSON con metadata, lo usamos
+        metadata = request if isinstance(request, dict) else {}
+        # Registrar evento con origen y metadata
+        # Tratar de extraer información de cabeceras si se provee en metadata
+        origin = metadata.get('origin') if isinstance(metadata, dict) else None
+        ua = metadata.get('user_agent') if isinstance(metadata, dict) else None
+
+        # Registrar en system_events
+        db_client.log_system_event(
+            event_type='frontend_ping',
+            device_id=None,
+            message='Frontend Ping recibido',
+            metadata={'origin': origin, 'user_agent': ua}
+        )
+
+        return {"success": True, "message": "Ping registrado"}
+    except Exception as e:
+        logger.error(f"Error en frontend_ping: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/logs/system")
 async def get_system_logs(limit: int = 50):

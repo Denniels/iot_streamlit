@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import time
+import subprocess
 from backend.config import Config, get_logger
 from backend.db_writer import LocalPostgresClient
 
@@ -492,14 +493,25 @@ class ArduinoDetector:
                                 except:
                                     device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
                                 
+                                    # intentar obtener MAC del host e incluirla en metadata si está disponible
+                                    mac = None
+                                    try:
+                                        mac = self._get_mac_for_ip(ip)
+                                    except Exception:
+                                        mac = None
+
+                                    metadata = {'protocol': 'http', 'port': scan_port}
+                                    if mac:
+                                        metadata['mac'] = mac
+
                                     device_data = {
-                                    'device_id': device_id,
-                                    'device_type': 'arduino_ethernet',
-                                    'name': f'Arduino Ethernet {ip}',
-                                    'ip_address': ip,
-                                    'status': 'online',
-                                            'metadata': {'protocol': 'http', 'port': scan_port}
-                                }
+                                        'device_id': device_id,
+                                        'device_type': 'arduino_ethernet',
+                                        'name': f'Arduino Ethernet {ip}',
+                                        'ip_address': ip,
+                                        'status': 'online',
+                                        'metadata': metadata
+                                    }
                                 
                                 self.db_client.register_device(device_data)
                                 self.db_client.log_system_event('device_connected', device_id, f'Arduino Ethernet detectado en {ip}:{port}')
@@ -553,10 +565,10 @@ class ArduinoDetector:
                                         'device_id': reported_id,
                                         'device_type': reported_type,
                                         'name': f"{reported_type} {ip}",
-                                        'ip_address': ip,
-                                        'port': port,
-                                        'status': 'online',
-                                        'metadata': {'protocol': 'http', 'port': port, 'ip': ip}
+                                                'ip_address': ip,
+                                                'port': port,
+                                                'status': 'online',
+                                                'metadata': {'protocol': 'http', 'port': port, 'ip': ip, 'mac': self._get_mac_for_ip(ip)}
                                     })
                                     self.db_client.log_system_event('device_discovered_at_unexpected_ip', reported_id, f'Found at {ip}:{port} while looking for {device_id}')
                                 except Exception as e:
@@ -581,7 +593,7 @@ class ArduinoDetector:
                                             'ip_address': new_ip,
                                             'port': new_port,
                                             'status': 'online',
-                                            'metadata': {'protocol': 'http', 'port': new_port, 'ip': new_ip}
+                                            'metadata': {'protocol': 'http', 'port': new_port, 'ip': new_ip, 'mac': found.get('mac')}
                                         })
                                         self.db_client.log_system_event('device_reconciled', device_id, f'IP actualizada a {new_ip}:{new_port} tras detectar mismatch en {ip}')
                                     except Exception as e:
@@ -722,8 +734,14 @@ class ArduinoDetector:
                                 continue
 
                             if data and data.get('device_id') == device_id:
+                                # intentar incluir MAC si está en la tabla ARP
+                                try:
+                                    mac = self._get_mac_for_ip(ip)
+                                except Exception:
+                                    mac = None
+
                                 logger.info(f"🔁 Dispositivo {device_id} encontrado en {ip}:{port}")
-                                return {'ip': ip, 'port': port, 'data': data}
+                                return {'ip': ip, 'port': port, 'data': data, 'mac': mac}
 
                     except Exception:
                         # Silenciar errores y continuar
@@ -775,3 +793,37 @@ class ArduinoDetector:
         if self.usb_connection and self.usb_connection.is_open:
             self.usb_connection.close()
             logger.info("Conexión USB cerrada")
+
+    def _get_mac_for_ip(self, ip: str) -> Optional[str]:
+        """Intentar obtener la MAC asociada a una IP local usando /proc/net/arp o 'ip neigh'.
+
+        Devuelve la MAC en formato XX:XX:XX:XX:XX:XX o None si no se encuentra.
+        """
+        try:
+            # Intentar leer /proc/net/arp (Linux)
+            with open('/proc/net/arp', 'r') as f:
+                lines = f.readlines()
+            for line in lines[1:]:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0].strip() == ip:
+                    hw = parts[3].strip()
+                    if hw and hw != '00:00:00:00:00:00':
+                        return hw
+        except Exception:
+            pass
+
+        try:
+            # fallback a 'ip neigh' comando
+            out = subprocess.check_output(['ip', 'neigh', 'show', ip], stderr=subprocess.DEVNULL, text=True)
+            # ejemplo: '192.168.0.101 dev eth0 lladdr aa:bb:cc:dd:ee:ff REACHABLE'
+            parts = out.split()
+            if 'lladdr' in parts:
+                idx = parts.index('lladdr')
+                if idx + 1 < len(parts):
+                    mac = parts[idx + 1]
+                    if mac and mac != '00:00:00:00:00:00':
+                        return mac
+        except Exception:
+            pass
+
+        return None

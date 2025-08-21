@@ -37,6 +37,10 @@ class Config:
     BACKEND_LOG = os.path.join(LOG_DIR, 'iot_backend.log')
     SYNC_LOG = os.path.join(LOG_DIR, 'sync_local_db.log')
 
+    # Reconciliación
+    # Tiempo mínimo en segundos entre intentos de reconciliación por dispositivo
+    RECONCILE_THROTTLE = int(os.getenv('RECONCILE_THROTTLE', 300))
+
     # Base de datos
     DB_HOST = os.getenv('DB_HOST', 'localhost')
     DB_PORT = int(os.getenv('DB_PORT', 5432))
