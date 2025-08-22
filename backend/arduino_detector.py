@@ -457,7 +457,6 @@ class ArduinoDetector:
     
     def detect_ethernet_arduinos(self, network_range: str = "192.168.0") -> List[Dict]:
         detected = []
-        
         try:
             # Construir lista de IPs a omitir: ESP32 ya conocidos
             try:
@@ -466,7 +465,6 @@ class ArduinoDetector:
                 for d in known_devices:
                     if d.get('device_type') == 'esp32_wifi' and d.get('ip_address'):
                         ip_str = str(d.get('ip_address'))
-                        # Normalizar posible formato INET con /32
                         if '/' in ip_str:
                             ip_str = ip_str.split('/', 1)[0]
                         known_esp32_ips.add(ip_str)
@@ -474,84 +472,80 @@ class ArduinoDetector:
                 known_esp32_ips = set()
 
             # Escanear puertos comunes para Arduinos con Ethernet Shield
-            common_ports = [80, 8080, 23, 1883]  # HTTP, HTTP-alt, Telnet, MQTT
-            
+            common_ports = [80, 8080, 23, 1883]
             for i in range(1, 255):
                 ip = f"{network_range}.{i}"
-
-                # Omitir IPs que sabemos que son ESP32
                 if ip in known_esp32_ips:
                     continue
-                
                 for port in common_ports:
                     try:
                         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         sock.settimeout(1)
-                        # Normalizar puerto por si viene como string/None en metadata
                         try:
                             scan_port = int(port)
                         except Exception:
                             scan_port = 80
-
                         result = sock.connect_ex((ip, scan_port))
-                        
                         if result == 0:
-                            # Solo probar Arduino Ethernet en puerto 80 (HTTP)
-                            # Usar scan_port coherente para la prueba
-                            if scan_port == 80 and self._test_arduino_ethernet(ip, port=scan_port):
-                                # Obtener el device_id real del Arduino
+                            if scan_port == 80:
                                 import requests
                                 try:
                                     response = requests.get(f'http://{ip}/data', timeout=3)
                                     if response.status_code == 200:
                                         data = response.json()
                                         device_id = data.get('device_id', f"arduino_ethernet_{ip.replace('.', '_')}")
-                                        # Si en realidad es un ESP32, omitir registro como Arduino Ethernet
+                                        device_type = data.get('device_type', '').lower()
                                         dev_id_lower = str(device_id).lower()
-                                        if 'esp32' in dev_id_lower or data.get('device_type') == 'esp32_wifi':
-                                            self.logger.debug(f"Omitiendo {ip}: identificado como ESP32 ({device_id})")
+                                        # Si es ESP32, registrar como esp32_wifi
+                                        if 'esp32' in dev_id_lower or device_type == 'esp32_wifi':
+                                            esp32_data = {
+                                                'device_id': device_id,
+                                                'device_type': 'esp32_wifi',
+                                                'name': f'ESP32 WiFi {ip}',
+                                                'ip_address': ip,
+                                                'port': scan_port,
+                                                'status': 'online',
+                                                'metadata': {'protocol': 'http', 'port': scan_port, 'ip': ip}
+                                            }
+                                            self.db_client.register_device(esp32_data)
+                                            self.db_client.log_system_event('device_connected', device_id, f'ESP32 WiFi detectado en {ip}')
+                                            detected.append(esp32_data)
+                                            self.logger.info(f"✅ ESP32 WiFi detectado: {device_id} en {ip}")
                                             sock.close()
                                             continue
-                                    else:
-                                        device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
-                                except:
-                                    device_id = f"arduino_ethernet_{ip.replace('.', '_')}"
-                                
-                                    # intentar obtener MAC del host e incluirla en metadata si está disponible
-                                    mac = None
-                                    try:
-                                        mac = self._get_mac_for_ip(ip)
-                                    except Exception:
-                                        mac = None
-
-                                    metadata = {'protocol': 'http', 'port': scan_port}
-                                    if mac:
-                                        metadata['mac'] = mac
-
-                                    device_data = {
-                                        'device_id': device_id,
-                                        'device_type': 'arduino_ethernet',
-                                        'name': f'Arduino Ethernet {ip}',
-                                        'ip_address': ip,
-                                        'status': 'online',
-                                        'metadata': metadata
-                                    }
-                                
-                                self.db_client.register_device(device_data)
-                                self.db_client.log_system_event('device_connected', device_id, f'Arduino Ethernet detectado en {ip}:{port}')
-                                
-                                detected.append(device_data)
-                                self.logger.info(f"✅ Arduino Ethernet detectado: {device_id} en {ip}:{port}")
-                        
+                                        # Si es Arduino Ethernet, registrar como tal
+                                        if device_type == 'arduino_ethernet' or ('arduino' in dev_id_lower and 'esp32' not in dev_id_lower):
+                                            mac = None
+                                            try:
+                                                mac = self._get_mac_for_ip(ip)
+                                            except Exception:
+                                                mac = None
+                                            metadata = {'protocol': 'http', 'port': scan_port}
+                                            if mac:
+                                                metadata['mac'] = mac
+                                            device_data = {
+                                                'device_id': device_id,
+                                                'device_type': 'arduino_ethernet',
+                                                'name': f'Arduino Ethernet {ip}',
+                                                'ip_address': ip,
+                                                'port': scan_port,
+                                                'status': 'online',
+                                                'metadata': metadata
+                                            }
+                                            self.db_client.register_device(device_data)
+                                            self.db_client.log_system_event('device_connected', device_id, f'Arduino Ethernet detectado en {ip}:{port}')
+                                            detected.append(device_data)
+                                            self.logger.info(f"✅ Arduino Ethernet detectado: {device_id} en {ip}:{port}")
+                                            sock.close()
+                                            continue
+                                except Exception:
+                                    pass
                         sock.close()
-                        
                     except Exception as e:
                         if sock:
                             sock.close()
                         continue
-            
             return detected
-            
         except Exception as e:
             logger.error(f"Error escaneando Arduinos Ethernet: {e}")
             return []
