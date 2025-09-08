@@ -78,7 +78,7 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
 # Usar la última URL pública conocida (actualizada el 01/08/2025 - 16:45)
 # URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://aud-irrigation-particles-flip.trycloudflare.com"
+DEFAULT_CF_URL = "https://assign-shorter-appear-seasons.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
