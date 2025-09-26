@@ -16,6 +16,12 @@ source /home/daniel/repos/iot_streamlit/.iot_streamlit/bin/activate
 ## (Opcional) Instala dependencias si hiciste cambios en requirements.txt
 pip install -r requirements.txt
 
+## Revisa el estado de los servicios
+sudo systemctl status acquire_data.service
+sudo systemctl status backend_api.service
+sudo systemctl status sync_local_db.service
+sudo systemctl status start_cloudflare_py.service
+
 ## Reinicia los servicios
 sudo systemctl start acquire_data.service
 sudo systemctl start backend_api.service
