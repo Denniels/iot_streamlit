@@ -57,3 +57,6 @@ Thumbs.db
 
 # ngrok config (no exponer token)
 /.ngrok2/
+
+# Evitar subir el archivo de resolución de problemas de la base de datos
+docs/resolucion_de_problemas_bd.md
