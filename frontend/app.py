@@ -78,7 +78,7 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
 # Usar la última URL pública conocida (actualizada el 09/10/2025 - 14:30)
 # URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://workshops-cakes-listening-frequencies.trycloudflare.com"
+DEFAULT_CF_URL = "https://seeds-factors-mounts-sum.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
