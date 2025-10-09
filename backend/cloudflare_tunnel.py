@@ -245,6 +245,10 @@ class CloudflareTunnelManager:
         """Ejecutar monitoreo de salud en loop principal"""
         logger.info(f"💚 Iniciando monitoreo de salud (cada {HEALTH_CHECK_INTERVAL}s)")
         
+        # Dar tiempo para propagación DNS inicial del túnel (60 segundos)
+        logger.info("⏳ Esperando 60s para propagación DNS del túnel...")
+        time.sleep(60)
+        
         while self.running:
             try:
                 current_time = time.time()

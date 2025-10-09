@@ -76,7 +76,7 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
-# Usar la última URL pública conocida (actualizada el 01/08/2025 - 16:45)
+# Usar la última URL pública conocida (actualizada el 09/10/2025 - 14:30)
 # URL verificada funcionando correctamente con filtros temporales
 DEFAULT_CF_URL = "https://seeds-factors-mounts-sum.trycloudflare.com"
 
