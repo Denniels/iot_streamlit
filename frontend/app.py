@@ -76,14 +76,14 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
-# Usar la última URL pública conocida (actualizada el 09/10/2025 - 15:35)
+# Usar la última URL pública conocida (actualizada el 09/10/2025 - 16:55)
 # URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://lcd-positioning-loose-maximize.trycloudflare.com"
+DEFAULT_CF_URL = "https://thou-resumes-whom-east.trycloudflare.com"
 
 # URLs de fallback en caso de que la URL principal no funcione
 FALLBACK_URLS = [
-    "https://lcd-positioning-loose-maximize.trycloudflare.com",
-    "https://seeds-factors-mounts-sum.trycloudflare.com"
+    "https://thou-resumes-whom-east.trycloudflare.com",
+    "https://lcd-positioning-loose-maximize.trycloudflare.com"
 ]
 
 def get_public_cf_url():

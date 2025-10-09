@@ -22,7 +22,7 @@ from backend.service_status import get_services_status
 
 from backend.config import Config, get_logger, setup_logging
 from backend.data_acquisition import DataAcquisition
-from backend.db_writer import LocalPostgresClient
+from backend.pooled_postgres_client import PooledPostgresClient
 from backend.api_cache import get_api_cache, CacheKeys
 
 # Configuración de logging
@@ -188,7 +188,7 @@ async def root():
 async def health_check():
     """Verificación de salud del sistema con información de cache"""
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         # Probar conexión a base de datos
         devices = db_client.get_devices()
         
@@ -252,7 +252,7 @@ async def get_devices(only_online: bool = False):
     
     # 2. Intentar base de datos
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         devices = db_client.get_devices()
         
         # Filtrar solo dispositivos que tienen datos de sensores
@@ -360,7 +360,7 @@ async def get_devices(only_online: bool = False):
 async def get_device_details(device_id: str):
     """Obtener detalles específicos de un dispositivo"""
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         devices = db_client.get_devices()
         
         device = next((d for d in devices if d.get('device_id') == device_id), None)
@@ -417,7 +417,7 @@ async def get_latest_data(device_id: str = None, limit: int = 200, hours: float 
     
     # 2. Intentar base de datos
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         
         if hours is not None:
             # Consulta por horas
@@ -495,7 +495,7 @@ async def get_device_data(device_id: str, limit: int = 100, hours: float = None,
     
     # 2. Intentar base de datos
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         
         if hours is not None:
             # Consulta por horas
@@ -689,7 +689,7 @@ async def frontend_ping(request: dict = None):
     Registra un evento en la tabla system_events con IP y user-agent.
     """
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         # Intentar obtener información del request desde FastAPI (headers en starlette)
         from fastapi import Request
         # Si el caller envía un JSON con metadata, lo usamos
@@ -716,7 +716,7 @@ async def frontend_ping(request: dict = None):
 async def get_system_logs(limit: int = 50):
     """Obtener logs recientes del sistema"""
     try:
-        db_client = LocalPostgresClient()
+        db_client = PooledPostgresClient()
         logs = db_client.get_system_events(limit)
         
         return ApiResponse(
