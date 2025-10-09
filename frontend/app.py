@@ -80,17 +80,32 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 # URL verificada funcionando correctamente con filtros temporales
 DEFAULT_CF_URL = "https://lcd-positioning-loose-maximize.trycloudflare.com"
 
+# URLs de fallback en caso de que la URL principal no funcione
+FALLBACK_URLS = [
+    "https://lcd-positioning-loose-maximize.trycloudflare.com",
+    "https://seeds-factors-mounts-sum.trycloudflare.com"
+]
+
 def get_public_cf_url():
-    # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
-    try:
-        resp = requests.get(f"{DEFAULT_CF_URL}/cf_url", timeout=10)
-        if resp.status_code == 200:
-            data = resp.json()
-            if data.get('success') and data.get('cf_url'):
-                return data['cf_url']
-    except Exception as e:
-        st.sidebar.warning(f"Error detectando URL automáticamente: {e}")
-    return DEFAULT_CF_URL  # Fallback a la URL conocida
+    # Intenta obtener la URL pública desde el endpoint /cf_url
+    urls_to_try = [DEFAULT_CF_URL] + [url for url in FALLBACK_URLS if url != DEFAULT_CF_URL]
+    
+    for base_url in urls_to_try:
+        try:
+            resp = requests.get(f"{base_url}/cf_url", timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('success') and data.get('cf_url'):
+                    detected_url = data['cf_url']
+                    if detected_url != base_url:
+                        st.sidebar.info(f"🔄 URL actualizada automáticamente: {detected_url}")
+                    return detected_url
+        except Exception as e:
+            continue  # Intentar con la siguiente URL
+    
+    # Si todos fallan, usar DEFAULT_CF_URL como último recurso
+    st.sidebar.warning("⚠️ Usando URL de fallback - la detección automática falló")
+    return DEFAULT_CF_URL
 
 
 
