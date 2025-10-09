@@ -504,18 +504,22 @@ class IoTDashboard:
         
         # --- Solo cargar datos recientes (últimos 10 min) para evitar sobrecarga ---
         st.write("🕐 Cargando datos recientes (últimos 10 min)")
-        data = self.get_sensor_data_by_time_range(selected_device, "real_time")
+        data = self.get_sensor_data_by_time_range(time_range="real_time")
         
         if not data:
             st.error(f"No se pueden cargar los datos desde la API Jetson para el dispositivo {selected_device}")
             return
             
-        df_device = pd.DataFrame(data)
-        if 'raw_data' in df_device.columns:
-            df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
-        if df_device.empty:
+        # Filtrar datos por dispositivo seleccionado
+        device_data = [record for record in data if record.get('device_id') == selected_device]
+        
+        if not device_data:
             st.info(f"No hay datos disponibles para {selected_device} en los últimos 10 minutos.")
             return
+            
+        df_device = pd.DataFrame(device_data)
+        if 'raw_data' in df_device.columns:
+            df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
 
         # Mostrar información del dispositivo
         device_type = "� ESP32 WiFi" if "esp32" in selected_device.lower() else "🌐 Ethernet" if "ethernet" in selected_device.lower() else "🔗 Red" if "net_device" in selected_device.lower() else "❓ Desconocido"

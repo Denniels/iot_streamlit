@@ -163,15 +163,19 @@ class PooledPostgresClient:
             
             # Agregar filtros temporales
             if hours is not None:
-                base_query += " AND timestamp >= NOW() - INTERVAL '%s hours'"
-                params.append(hours)
+                base_query += " AND timestamp >= NOW() - INTERVAL %s"
+                params.append(f"{hours} hours")
             elif days is not None:
-                base_query += " AND timestamp >= NOW() - INTERVAL '%s days'"
-                params.append(days)
+                base_query += " AND timestamp >= NOW() - INTERVAL %s"
+                params.append(f"{days} days")
             
             # Ordenar y limitar
             base_query += " ORDER BY timestamp DESC LIMIT %s"
             params.append(limit)
+            
+            # Debug temporal - eliminar después
+            logger.info(f"🔍 DEBUG SQL: {base_query}")
+            logger.info(f"🔍 DEBUG Params: {params}")
             
             result = self.execute_query(base_query, tuple(params))
             return result if result else []

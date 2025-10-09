@@ -420,18 +420,12 @@ async def get_latest_data(device_id: str = None, limit: int = 200, hours: float 
         db_client = PooledPostgresClient()
         
         if hours is not None:
-            # Consulta por horas
-            if device_id:
-                data = db_client.get_data_by_hours(device_id, hours)
-            else:
-                data = db_client.get_all_data_by_hours(hours)
+            # Consulta por horas usando get_sensor_data
+            data = db_client.get_sensor_data(device_id=device_id, hours=hours, limit=limit)
             time_desc = f"últimas {hours} horas"
         elif days is not None:
-            # Consulta por días
-            if device_id:
-                data = db_client.get_data_by_days(device_id, days)
-            else:
-                data = db_client.get_all_data_by_days(days)
+            # Consulta por días usando get_sensor_data
+            data = db_client.get_sensor_data(device_id=device_id, days=days, limit=limit)
             time_desc = f"últimos {days} días"
         else:
             # Consulta por límite (comportamiento original)
