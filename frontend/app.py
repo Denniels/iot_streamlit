@@ -75,53 +75,142 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 
-# --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
-# Usar la última URL pública conocida (actualizada el 09/10/2025 - 17:30)
-# URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://king-stockings-networking-categories.trycloudflare.com"
+# --- Sistema robusto de detección de URL de Cloudflare Tunnel ---
+import time
+from urllib.parse import urlparse
 
-# URLs de respaldo en caso de que la detección automática falle
-FALLBACK_URLS = [
-    "https://king-stockings-networking-categories.trycloudflare.com",
-    "https://thou-resumes-whom-east.trycloudflare.com",
-    "https://lcd-positioning-loose-maximize.trycloudflare.com"
+# URLs conocidas ordenadas por prioridad (las más recientes primero)
+KNOWN_CF_URLS = [
+    "https://king-stockings-networking-categories.trycloudflare.com",  # URL actual Oct 9, 2025
+    "https://lcd-positioning-loose-maximize.trycloudflare.com", 
+    "https://thou-resumes-whom-east.trycloudflare.com"
 ]
 
+def handle_api_error(e, operation="API call", show_error=True):
+    """Maneja errores de API de manera consistente y user-friendly"""
+    error_msg = "Conexión con el Jetson Nano perdida"
+    
+    if hasattr(e, 'response') and e.response is not None:
+        if e.response.status_code == 404:
+            error_msg = "Endpoint no encontrado en la API"
+        elif e.response.status_code == 500:
+            error_msg = "Error interno del servidor Jetson"
+        elif e.response.status_code == 503:
+            error_msg = "Servicio temporalmente no disponible"
+        else:
+            error_msg = f"Error HTTP {e.response.status_code}"
+    elif "timeout" in str(e).lower():
+        error_msg = "Timeout - El Jetson Nano no responde"
+    elif "connection" in str(e).lower():
+        error_msg = "No se puede conectar con el Jetson Nano"
+    
+    if show_error:
+        st.error(f"❌ {operation}: {error_msg}")
+    
+    return None
+
+def check_url_health(url, timeout=5):
+    """Verifica si una URL está disponible y responde correctamente"""
+    try:
+        response = requests.get(f"{url}/health", timeout=timeout)
+        return response.status_code == 200
+    except Exception:
+        return False
+
+def get_current_url_from_endpoint(url, timeout=8):
+    """Obtiene la URL actual desde el endpoint /cf_url de una URL base"""
+    try:
+        response = requests.get(f"{url}/cf_url", timeout=timeout)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('cf_url'):
+                return data['cf_url']
+    except Exception:
+        pass
+    return None
+
+@st.cache_data(ttl=60)  # Cache por 1 minuto para reducir requests
 def get_public_cf_url():
-    # Intenta obtener la URL pública desde el endpoint /cf_url
-    urls_to_try = [DEFAULT_CF_URL] + [url for url in FALLBACK_URLS if url != DEFAULT_CF_URL]
+    """
+    Sistema robusto de detección de URL con múltiples estrategias:
+    1. Intenta obtener URL actual desde endpoints /cf_url conocidos
+    2. Verifica salud de URLs detectadas
+    3. Usa URLs conocidas como fallback
+    4. Implementa timeouts y reintentos apropiados
+    """
     
-    for base_url in urls_to_try:
-        try:
-            resp = requests.get(f"{base_url}/cf_url", timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('success') and data.get('cf_url'):
-                    detected_url = data['cf_url']
-                    if detected_url != base_url:
-                        st.sidebar.info(f"🔄 URL actualizada automáticamente: {detected_url}")
-                    return detected_url
-        except Exception as e:
-            continue  # Intentar con la siguiente URL
+    # Estrategia 1: Intentar obtener URL actual desde endpoints conocidos
+    for base_url in KNOWN_CF_URLS:
+        current_url = get_current_url_from_endpoint(base_url, timeout=6)
+        if current_url:
+            # Verificar que la URL detectada funcione
+            if check_url_health(current_url, timeout=5):
+                if current_url != base_url:
+                    st.sidebar.success(f"🔄 URL actualizada automáticamente: {current_url}")
+                return current_url
+            else:
+                st.sidebar.warning(f"⚠️ URL detectada {current_url} no responde, probando alternativas...")
     
-    # Si todos fallan, usar DEFAULT_CF_URL como último recurso
-    st.sidebar.warning("⚠️ Usando URL de fallback - la detección automática falló")
-    return DEFAULT_CF_URL
+    # Estrategia 2: Verificar URLs conocidas directamente
+    st.sidebar.info("🔍 Verificando URLs conocidas...")
+    for url in KNOWN_CF_URLS:
+        if check_url_health(url, timeout=4):
+            st.sidebar.info(f"✅ URL funcional encontrada: {url}")
+            return url
+    
+    # Estrategia 3: Último recurso - usar la primera URL conocida con advertencia
+    fallback_url = KNOWN_CF_URLS[0]
+    st.sidebar.error(f"❌ No se encontró ninguna URL funcional. Usando {fallback_url} como fallback.")
+    st.sidebar.error("🔧 Si persiste el problema, contacta al administrador del sistema.")
+    return fallback_url
 
 
 
 # Siempre intenta descubrir la URL pública automáticamente y actualizar si cambia
 if 'api_url' not in st.session_state:
     st.session_state['api_url'] = None
+if 'url_last_check' not in st.session_state:
+    st.session_state['url_last_check'] = 0
+if 'connectivity_status' not in st.session_state:
+    st.session_state['connectivity_status'] = "unknown"
 
-auto_url = get_public_cf_url()
-if auto_url and auto_url != st.session_state['api_url']:
-    st.session_state['api_url'] = auto_url
-    st.sidebar.success(f"URL pública activa: {auto_url}")
-elif st.session_state['api_url']:
-    st.sidebar.success(f"URL pública activa: {st.session_state['api_url']}")
+# Verificar URL cada 2 minutos o si no hay URL configurada
+current_time = time.time()
+should_check_url = (
+    not st.session_state['api_url'] or 
+    (current_time - st.session_state['url_last_check']) > 120
+)
+
+if should_check_url:
+    st.session_state['url_last_check'] = current_time
+    auto_url = get_public_cf_url()
+    
+    if auto_url:
+        # Verificar conectividad actual
+        if check_url_health(auto_url, timeout=3):
+            st.session_state['connectivity_status'] = "connected"
+            if auto_url != st.session_state['api_url']:
+                st.session_state['api_url'] = auto_url
+                st.sidebar.success(f"🌐 URL pública detectada: {auto_url}")
+        else:
+            st.session_state['connectivity_status'] = "failed"
+            st.sidebar.error("❌ No se puede conectar con la API del Jetson")
+    else:
+        st.session_state['connectivity_status'] = "no_url"
+        st.sidebar.error("🔍 No se pudo detectar ninguna URL válida")
+
+# Mostrar estado de conectividad en la sidebar
+if st.session_state['api_url']:
+    if st.session_state['connectivity_status'] == "connected":
+        st.sidebar.success(f"✅ API conectada: {st.session_state['api_url']}")
+    elif st.session_state['connectivity_status'] == "failed":
+        st.sidebar.error(f"❌ API no responde: {st.session_state['api_url']}")
+        st.sidebar.info("🔄 La app intentará reconectar automáticamente")
+    else:
+        st.sidebar.warning(f"⚠️ Verificando conectividad: {st.session_state['api_url']}")
 else:
-    st.sidebar.error("No se pudo detectar la URL pública de Cloudflare Tunnel. Esperando a que esté disponible...")
+    st.sidebar.error("❌ Sin conexión a la API del Jetson Nano")
+    st.sidebar.info("🔧 Verifique que los servicios estén ejecutándose")
 
 API_URL = st.session_state['api_url']
 
@@ -155,25 +244,21 @@ class IoTDashboard:
         except Exception:
             pass
 
-    def get_sensor_data_by_time_range(self, device_id=None, time_range="recent", hours=None, days=None):
-        """
-        Obtiene datos de sensores según el rango temporal especificado
-        """
+    def get_sensor_data_by_time_range(self, time_range=None, hours=None, days=None):
+        """Obtiene los datos de sensores filtrando por rango de tiempo"""
         if not API_URL:
-            st.error("Debes ingresar la URL pública de la API Jetson (Cloudflare Tunnel) en la barra lateral.")
+            st.error("❌ URL de API no configurada. Verifica la conexión con el Jetson Nano.")
             return None
+        
         try:
-            if device_id:
-                url = f"{API_URL}/data/{device_id}"
-            else:
-                url = f"{API_URL}/data"
-            
-            # Construir parámetros según el rango temporal
+            url = f"{API_URL}/data"
             params = {}
-            if time_range == "real_time":
-                params['hours'] = 0.17  # ~10 minutos
-            elif time_range == "today":
-                params['hours'] = 24
+            
+            # Configurar parámetros según el rango de tiempo
+            if time_range == "hour":
+                params['hours'] = 1
+            elif time_range == "day": 
+                params['days'] = 1
             elif time_range == "week":
                 params['days'] = 7
             elif time_range == "month":
@@ -190,7 +275,7 @@ class IoTDashboard:
             # Debug: mostrar qué parámetros se están enviando
             st.write(f"🔍 **Debug API Call:** URL: {url}, Params: {params}")
             
-            resp = requests.get(url, params=params, timeout=10)
+            resp = requests.get(url, params=params, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
                 result_data = data.get('data', [])
@@ -205,7 +290,7 @@ class IoTDashboard:
                         if len(result_data) <= 3 and float(sent_hours) < 1.0:
                             st.write("ℹ️ Pocos registros en ventana corta, reintentando con 1 hora...")
                             params['hours'] = 1.0
-                            resp2 = requests.get(url, params=params, timeout=10)
+                            resp2 = requests.get(url, params=params, timeout=15)
                             if resp2.status_code == 200:
                                 data2 = resp2.json()
                                 result_data = data2.get('data', [])
@@ -216,11 +301,14 @@ class IoTDashboard:
 
                 return result_data
             else:
-                st.error(f"❌ Error consultando API: {resp.status_code} {resp.text}")
-                return None
+                return handle_api_error(Exception(f"HTTP {resp.status_code}: {resp.text}"), 
+                                      "Consulta de datos de sensores")
+        except requests.exceptions.Timeout:
+            return handle_api_error(Exception("timeout"), "Consulta de datos de sensores")
+        except requests.exceptions.ConnectionError:
+            return handle_api_error(Exception("connection"), "Consulta de datos de sensores") 
         except Exception as e:
-            st.error(f"❌ Error consultando API: {e}")
-            return None
+            return handle_api_error(e, "Consulta de datos de sensores")
 
     def get_sensor_data(self, limit=500):
         """Método legacy - usar get_sensor_data_by_time_range en su lugar"""

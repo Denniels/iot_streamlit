@@ -20,7 +20,6 @@ python-multipart>=0.0.6
 
 # === BASE DE DATOS ===
 psycopg2-binary>=2.9.7
-psycopg2-pool>=1.2
 #supabase>=2.0.2
 
 # === CONFIGURACIÓN Y VARIABLES DE ENTORNO ===

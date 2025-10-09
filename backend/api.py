@@ -57,7 +57,7 @@ api_cache = get_api_cache()  # Cache interno para resilencia
 # --- Cloudflare Tunnel management ---
 
 # Ruta al archivo de configuración del túnel Cloudflare
-CF_CREDENTIALS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../secrets_tunnel.toml'))
+CF_CREDENTIALS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'secrets_tunnel.toml'))
 
 
 # --- Endpoint que lee la URL pública de Cloudflare Tunnel en tiempo real ---
