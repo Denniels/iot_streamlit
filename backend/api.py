@@ -78,6 +78,39 @@ async def get_cf_url():
         return {"success": False, "cf_url": None, "error": str(e)}
 
 
+# Modelo para recibir notificaciones de cambio de URL del túnel
+class TunnelUrlUpdate(BaseModel):
+    tunnel_url: str
+    timestamp: Optional[str] = None
+
+
+@app.post("/internal/tunnel_url_update")
+async def tunnel_url_update(update: TunnelUrlUpdate):
+    """Endpoint interno para recibir notificaciones de cambio de URL del túnel Cloudflare"""
+    try:
+        logger.info(f"📡 Notificación de cambio de URL del túnel: {update.tunnel_url}")
+        
+        # Actualizar caché interno si es necesario
+        api_cache.set(CacheKeys.TUNNEL_URL, {
+            "url": update.tunnel_url,
+            "last_updated": update.timestamp or datetime.now(timezone.utc).isoformat()
+        }, ttl=3600 * 24)  # Cache por 24 horas
+        
+        logger.info(f"✅ URL del túnel actualizada en cache: {update.tunnel_url}")
+        
+        return {
+            "success": True,
+            "message": "Tunnel URL actualizada correctamente",
+            "url": update.tunnel_url
+        }
+    except Exception as e:
+        logger.error(f"❌ Error actualizando URL del túnel: {e}")
+        return {
+            "success": False,
+            "message": f"Error actualizando URL: {str(e)}"
+        }
+
+
 # Modelos Pydantic para validación de datos
 class DeviceStatus(BaseModel):
     device_id: str

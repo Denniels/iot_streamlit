@@ -1,6 +1,6 @@
 [Unit]
 Description=Servicio Cloudflare Tunnel (Python) para exponer el backend IoT y actualizar secrets_tunnel.toml
-After=network.target
+After=network.target backend_api.service
 
 [Service]
 Type=simple
@@ -8,9 +8,12 @@ User=daniel
 WorkingDirectory=/home/daniel/repos/iot_streamlit
 Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/.iot_streamlit"
 Environment="PATH=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/start_cloudflare.py
+ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/backend/cloudflare_tunnel.py
 Restart=always
-RestartSec=5
+RestartSec=15
+TimeoutStopSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

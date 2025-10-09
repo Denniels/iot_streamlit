@@ -64,6 +64,10 @@ class APIInternalCache:
         
         logger.debug(f"💾 Datos cached para {key}")
     
+    def set(self, key: str, data: Dict, ttl: int = None, persist_fallback: bool = True):
+        """Alias corto de set_cache_data con soporte para TTL personalizado (no implementado aún)"""
+        self.set_cache_data(key, data, persist_fallback)
+    
     def get_fallback_data(self, key: str) -> Optional[Dict]:
         """Obtiene datos de emergencia cuando todo falla"""
         with self.lock:
@@ -175,6 +179,9 @@ class APIInternalCache:
 
 class CacheKeys:
     """Constantes para keys de cache estandarizados"""
+    
+    # Constantes para keys estáticas
+    TUNNEL_URL = "cloudflare_tunnel_url"
     
     @staticmethod
     def device_data(device_id: str, limit: int = 100, hours: float = None, days: int = None) -> str:
