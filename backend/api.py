@@ -267,7 +267,7 @@ async def get_devices(only_online: bool = False):
             # Solo incluir dispositivos que pueden tener sensores
             if device_type in sensor_device_types:
                 # Verificar que el dispositivo tiene datos recientes
-                recent_data = db_client.get_recent_data(device_id, limit=1)
+                recent_data = db_client.get_sensor_data(device_id=device_id, limit=1)
                 
                 # Normalizar y formatear campos para la respuesta JSON
                 ip_raw = device.get('ip_address')
