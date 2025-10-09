@@ -76,9 +76,9 @@ st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
 
 # --- Detección automática y robusta de la URL pública de Cloudflare Tunnel ---
-# Usar la última URL pública conocida (actualizada el 09/10/2025 - 14:30)
+# Usar la última URL pública conocida (actualizada el 09/10/2025 - 15:35)
 # URL verificada funcionando correctamente con filtros temporales
-DEFAULT_CF_URL = "https://lawn-resolved-doom-paper.trycloudflare.com"
+DEFAULT_CF_URL = "https://lcd-positioning-loose-maximize.trycloudflare.com"
 
 def get_public_cf_url():
     # Intenta obtener la URL pública desde el endpoint /cf_url de la URL pública conocida
