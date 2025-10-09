@@ -73,7 +73,7 @@ class PooledPostgresClient:
         try:
             if only_online:
                 query = """
-                    SELECT device_id, device_type, ip_address, port, mac_address, 
+                    SELECT device_id, device_type, ip_address, port, 
                            status, last_seen, updated_at, created_at
                     FROM devices 
                     WHERE status = 'online' 
@@ -82,7 +82,7 @@ class PooledPostgresClient:
                 """
             else:
                 query = """
-                    SELECT device_id, device_type, ip_address, port, mac_address, 
+                    SELECT device_id, device_type, ip_address, port, 
                            status, last_seen, updated_at, created_at
                     FROM devices 
                     ORDER BY updated_at DESC 
@@ -100,7 +100,7 @@ class PooledPostgresClient:
         """Obtener dispositivo específico por ID"""
         try:
             query = """
-                SELECT device_id, device_type, ip_address, port, mac_address, 
+                SELECT device_id, device_type, ip_address, port, 
                        status, last_seen, updated_at, created_at
                 FROM devices 
                 WHERE device_id = %s
@@ -116,14 +116,13 @@ class PooledPostgresClient:
         """Guardar o actualizar dispositivo"""
         try:
             query = """
-                INSERT INTO devices (device_id, device_type, ip_address, port, mac_address, status, last_seen, updated_at)
-                VALUES (%(device_id)s, %(device_type)s, %(ip_address)s, %(port)s, %(mac_address)s, %(status)s, %(last_seen)s, %(updated_at)s)
+                INSERT INTO devices (device_id, device_type, ip_address, port, status, last_seen, updated_at)
+                VALUES (%(device_id)s, %(device_type)s, %(ip_address)s, %(port)s, %(status)s, %(last_seen)s, %(updated_at)s)
                 ON CONFLICT (device_id) 
                 DO UPDATE SET 
                     device_type = EXCLUDED.device_type,
                     ip_address = EXCLUDED.ip_address,
                     port = EXCLUDED.port,
-                    mac_address = EXCLUDED.mac_address,
                     status = EXCLUDED.status,
                     last_seen = EXCLUDED.last_seen,
                     updated_at = EXCLUDED.updated_at
