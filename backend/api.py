@@ -23,6 +23,7 @@ from backend.service_status import get_services_status
 from backend.config import Config, get_logger, setup_logging
 from backend.data_acquisition import DataAcquisition
 from backend.db_writer import LocalPostgresClient
+from backend.api_cache import get_api_cache, CacheKeys
 
 # Configuración de logging
 setup_logging(Config.BACKEND_LOG)
@@ -47,9 +48,10 @@ app.add_middleware(
 )
 
 
-# Instancia global del sistema de adquisición
+# Instancia global del sistema de adquisición y cache
 data_acquisition = DataAcquisition()
 acquisition_task = None
+api_cache = get_api_cache()  # Cache interno para resilencia
 
 
 # --- Cloudflare Tunnel management ---
@@ -151,23 +153,33 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Verificación de salud del sistema"""
+    """Verificación de salud del sistema con información de cache"""
     try:
         db_client = LocalPostgresClient()
         # Probar conexión a base de datos
         devices = db_client.get_devices()
         
+        # Obtener estadísticas del cache
+        cache_stats = api_cache.get_cache_stats()
+        
         return {
             "status": "healthy",
             "timestamp": datetime.now(timezone.utc),
             "database": "connected",
-            "devices_count": len(devices)
+            "devices_count": len(devices),
+            "cache": cache_stats
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Sistema no saludable: {str(e)}"
-        )
+        # Si la BD falla, reportar estado degradado pero mantener info de cache
+        cache_stats = api_cache.get_cache_stats()
+        return {
+            "status": "degraded",
+            "timestamp": datetime.now(timezone.utc),
+            "database": f"error: {str(e)}",
+            "devices_count": 0,
+            "cache": cache_stats,
+            "fallback_available": cache_stats.get('fallback_entries', 0) > 0
+        }
 
 @app.get("/status", response_model=SystemStatus)
 async def get_system_status():
@@ -192,7 +204,20 @@ async def get_system_status():
 
 @app.get("/devices", response_model=ApiResponse)
 async def get_devices(only_online: bool = False):
-    """Obtener lista de dispositivos con datos de sensores únicamente"""
+    """Obtener lista de dispositivos con cache resiliente"""
+    cache_key = CacheKeys.devices_list(only_online)
+    
+    # 1. Intentar cache fresco (TTL: 2 minutos para dispositivos)
+    cached_result = api_cache.get_cached_data(cache_key, ttl_override=120)
+    if cached_result:
+        return ApiResponse(
+            success=True,
+            message=f"Dispositivos con sensores (cache) - online_filter: {only_online}",
+            data=cached_result,
+            timestamp=datetime.now()
+        )
+    
+    # 2. Intentar base de datos
     try:
         db_client = LocalPostgresClient()
         devices = db_client.get_devices()
@@ -266,6 +291,9 @@ async def get_devices(only_online: bool = False):
         else:
             filtered = formatted_devices
 
+        # Guardar en cache para futuras consultas
+        api_cache.set_cache_data(cache_key, filtered)
+
         return ApiResponse(
             success=True,
             message=f"{len(filtered)} dispositivos con sensores encontrados",
@@ -274,10 +302,25 @@ async def get_devices(only_online: bool = False):
         )
         
     except Exception as e:
-        logger.error(f"Error obteniendo dispositivos: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error obteniendo lista de dispositivos"
+        logger.error(f"Error obteniendo dispositivos desde BD: {e}")
+        
+        # 3. Fallback a datos de emergencia
+        fallback_data = api_cache.get_fallback_data(cache_key)
+        if fallback_data:
+            return ApiResponse(
+                success=True,
+                message=f"Dispositivos (fallback - puede estar desactualizado) - online_filter: {only_online}",
+                data=fallback_data,
+                timestamp=datetime.now()
+            )
+        
+        # 4. Respuesta de emergencia para que Streamlit no falle
+        logger.error("💥 No hay dispositivos disponibles en cache ni fallback")
+        return ApiResponse(
+            success=False,
+            message="Temporalmente sin acceso a lista de dispositivos",
+            data=[],  # Lista vacía en lugar de None
+            timestamp=datetime.now()
         )
 
 @app.get("/devices/{device_id}")
@@ -323,7 +366,23 @@ from backend.postgres_client import PostgreSQLClient
 
 @app.get("/data", response_model=ApiResponse)
 async def get_latest_data(device_id: str = None, limit: int = 200, hours: float = None, days: int = None):
-    """Obtener datos recientes con filtro temporal opcional"""
+    """Obtener datos recientes con filtro temporal opcional y cache resiliente"""
+    cache_key = CacheKeys.all_data(hours=hours, days=days, limit=limit)
+    if device_id:
+        cache_key = CacheKeys.device_data(device_id, limit=limit, hours=hours, days=days)
+    
+    # 1. Intentar cache fresco (TTL: 1 minuto para datos generales)
+    cached_result = api_cache.get_cached_data(cache_key, ttl_override=60)
+    if cached_result:
+        time_desc = f"últimas {hours} horas" if hours else f"últimos {days} días" if days else f"últimos {limit} registros"
+        return ApiResponse(
+            success=True,
+            message=f"Datos recientes (cache) ({time_desc})" + (f" para {device_id}" if device_id else ""),
+            data=cached_result,
+            timestamp=datetime.now()
+        )
+    
+    # 2. Intentar base de datos
     try:
         db_client = LocalPostgresClient()
         
@@ -352,7 +411,10 @@ async def get_latest_data(device_id: str = None, limit: int = 200, hours: float 
                     "SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT %s", (limit,)
                 )
             time_desc = f"últimos {limit} registros"
-        
+
+        # Guardar en cache para futuras consultas
+        api_cache.set_cache_data(cache_key, data)
+
         return ApiResponse(
             success=True,
             message=f"Datos recientes ({time_desc})" + (f" para {device_id}" if device_id else ""),
@@ -362,14 +424,43 @@ async def get_latest_data(device_id: str = None, limit: int = 200, hours: float 
     
     except Exception as e:
         logger.error(f"Error obteniendo datos recientes: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error obteniendo datos recientes"
+        
+        # 3. Fallback a datos de emergencia
+        fallback_data = api_cache.get_fallback_data(cache_key)
+        if fallback_data:
+            time_desc = f"últimas {hours} horas" if hours else f"últimos {days} días" if days else f"últimos {limit} registros"
+            return ApiResponse(
+                success=True,
+                message=f"Datos recientes (fallback - puede estar desactualizado) ({time_desc})" + (f" para {device_id}" if device_id else ""),
+                data=fallback_data,
+                timestamp=datetime.now()
+            )
+        
+        # 4. Respuesta de emergencia para que Streamlit no falle
+        logger.error("💥 No hay datos recientes disponibles en cache ni fallback")
+        return ApiResponse(
+            success=False,
+            message="Temporalmente sin acceso a datos recientes",
+            data=[],  # Lista vacía en lugar de None
+            timestamp=datetime.now()
         )
 
 @app.get("/data/{device_id}")
 async def get_device_data(device_id: str, limit: int = 100, hours: float = None, days: int = None):
-    """Obtener datos históricos de un dispositivo específico con filtro temporal"""
+    """Obtener datos históricos de un dispositivo específico con filtro temporal y cache resiliente"""
+    cache_key = CacheKeys.device_data(device_id, limit, hours, days)
+    
+    # 1. Intentar cache fresco (TTL: 1 minuto para datos históricos)
+    cached_result = api_cache.get_cached_data(cache_key, ttl_override=60)
+    if cached_result:
+        return ApiResponse(
+            success=True,
+            message=f"Datos históricos de {device_id} (cache)",
+            data=cached_result,
+            timestamp=datetime.now()
+        )
+    
+    # 2. Intentar base de datos
     try:
         db_client = LocalPostgresClient()
         
@@ -394,7 +485,10 @@ async def get_device_data(device_id: str, limit: int = 100, hours: float = None,
             # Consulta por límite (comportamiento original)
             data = db_client.get_recent_data(device_id, limit)
             time_desc = f"últimos {limit} registros"
-        
+
+        # Guardar en cache para futuras consultas
+        api_cache.set_cache_data(cache_key, data)
+
         return ApiResponse(
             success=True,
             message=f"Datos históricos de {device_id} ({time_desc})",
@@ -404,39 +498,62 @@ async def get_device_data(device_id: str, limit: int = 100, hours: float = None,
         
     except Exception as e:
         logger.error(f"Error obteniendo datos de {device_id}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error obteniendo datos del dispositivo {device_id}"
+        
+        # 3. Fallback a datos de emergencia
+        fallback_data = api_cache.get_fallback_data(cache_key)
+        if fallback_data:
+            return ApiResponse(
+                success=True,
+                message=f"Datos históricos de {device_id} (fallback - puede estar desactualizado)",
+                data=fallback_data,
+                timestamp=datetime.now()
+            )
+        
+        # 4. Respuesta de emergencia para que Streamlit no falle
+        logger.error(f"💥 No hay datos históricos disponibles para dispositivo {device_id}")
+        return ApiResponse(
+            success=False,
+            message=f"Temporalmente sin acceso a datos del dispositivo {device_id}",
+            data=[],  # Lista vacía en lugar de None
+            timestamp=datetime.now()
         )
 
 @app.post("/scan/network")
 async def scan_network(background_tasks: BackgroundTasks):
-    """Iniciar escaneo de red para nuevos dispositivos"""
+    """Iniciar escaneo de red para nuevos dispositivos (resiliente)"""
     try:
         def run_scan():
-            logger.info("Iniciando escaneo de red en segundo plano...")
-            data_acquisition.device_scanner.scan_network()
-            data_acquisition.arduino_detector.detect_ethernet_arduinos()
-            logger.info("Escaneo de red completado")
+            try:
+                logger.info("Iniciando escaneo de red en segundo plano...")
+                data_acquisition.device_scanner.scan_network()
+                data_acquisition.arduino_detector.detect_ethernet_arduinos()
+                logger.info("Escaneo de red completado")
+            except Exception as scan_error:
+                logger.error(f"Error durante escaneo de red: {scan_error}")
+                # No lanzar excepción para no afectar la API
         
         background_tasks.add_task(run_scan)
         
         return ApiResponse(
             success=True,
             message="Escaneo de red iniciado en segundo plano",
+            data={"status": "iniciado", "background_task": True},
             timestamp=datetime.now()
         )
         
     except Exception as e:
         logger.error(f"Error iniciando escaneo de red: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error iniciando escaneo de red"
+        # Respuesta no crítica para que Streamlit no falle
+        return ApiResponse(
+            success=False,
+            message="No se pudo iniciar escaneo de red en este momento",
+            data={"status": "error", "error": str(e)},
+            timestamp=datetime.now()
         )
 
 @app.post("/acquisition/start")
 async def start_acquisition(interval: int = 10):
-    """Iniciar adquisición continua de datos"""
+    """Iniciar adquisición continua de datos (resiliente)"""
     global acquisition_task
     
     try:
@@ -444,12 +561,23 @@ async def start_acquisition(interval: int = 10):
             return ApiResponse(
                 success=False,
                 message="Adquisición ya está en ejecución",
+                data={"status": "ya_ejecutandose", "interval": interval},
                 timestamp=datetime.now()
             )
         
         # Iniciar en thread separado para no bloquear la API
         def run_acquisition():
-            data_acquisition.start_continuous_acquisition(interval)
+            try:
+                data_acquisition.start_continuous_acquisition(interval)
+            except Exception as acq_error:
+                logger.error(f"Error durante adquisición continua: {acq_error}")
+                # Reintentar automáticamente después de delay
+                import time
+                time.sleep(5)
+                try:
+                    data_acquisition.start_continuous_acquisition(interval)
+                except Exception as retry_error:
+                    logger.error(f"Error en reintento de adquisición: {retry_error}")
         
         import threading
         acquisition_task = threading.Thread(target=run_acquisition, daemon=True)
@@ -458,19 +586,23 @@ async def start_acquisition(interval: int = 10):
         return ApiResponse(
             success=True,
             message=f"Adquisición iniciada con intervalo de {interval} segundos",
+            data={"status": "iniciada", "interval": interval, "thread_daemon": True},
             timestamp=datetime.now()
         )
         
     except Exception as e:
         logger.error(f"Error iniciando adquisición: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error iniciando adquisición de datos"
+        # Respuesta no crítica para que Streamlit no falle
+        return ApiResponse(
+            success=False,
+            message="No se pudo iniciar adquisición en este momento",
+            data={"status": "error", "error": str(e), "interval": interval},
+            timestamp=datetime.now()
         )
 
 @app.post("/acquisition/stop")
 async def stop_acquisition():
-    """Detener adquisición continua de datos"""
+    """Detener adquisición continua de datos (resiliente)"""
     global acquisition_task
     
     try:
@@ -480,19 +612,23 @@ async def stop_acquisition():
         return ApiResponse(
             success=True,
             message="Adquisición detenida correctamente",
+            data={"status": "detenida"},
             timestamp=datetime.now()
         )
         
     except Exception as e:
         logger.error(f"Error deteniendo adquisición: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error deteniendo adquisición de datos"
+        # Respuesta no crítica para que Streamlit no falle
+        return ApiResponse(
+            success=False,
+            message="No se pudo detener adquisición - puede ya estar detenida",
+            data={"status": "error", "error": str(e)},
+            timestamp=datetime.now()
         )
 
 @app.post("/data/collect")
 async def collect_data_now():
-    """Recopilar datos inmediatamente (una vez)"""
+    """Recopilar datos inmediatamente (una vez) - operación resiliente"""
     try:
         data = data_acquisition.collect_all_data()
         
@@ -505,9 +641,12 @@ async def collect_data_now():
         
     except Exception as e:
         logger.error(f"Error recopilando datos: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error recopilando datos"
+        # Respuesta no crítica para que Streamlit no falle
+        return ApiResponse(
+            success=False,
+            message="No se pudieron recopilar datos en este momento",
+            data={"status": "error", "error": str(e)},
+            timestamp=datetime.now()
         )
 
 

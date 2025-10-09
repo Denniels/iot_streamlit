@@ -1,9 +1,11 @@
 """
 Cliente para interactuar con la base de datos local PostgreSQL
+Versión mejorada con manejo robusto de errores y timeouts para Jetson Nano
 """
 
 import json
 import psycopg2
+import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from backend.config import Config, get_logger
@@ -12,137 +14,258 @@ import os
 logger = get_logger(__name__)
 
 class LocalPostgresClient:
-    """Cliente para operaciones con la base de datos local PostgreSQL"""
+    """Cliente para operaciones con la base de datos local PostgreSQL con manejo robusto de errores"""
     
     def __init__(self):
-        try:
-            self.conn = psycopg2.connect(
-                dbname=os.getenv('DB_NAME', 'iot_db'),
-                user=os.getenv('DB_USER', 'iot_user'),
-                password=os.getenv('DB_PASSWORD', 'DAms15820'),
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=os.getenv('DB_PORT', '5432')
-            )
-            logger.info("Conexión a la base de datos local PostgreSQL establecida (LocalPostgresClient)")
-        except Exception as e:
-            logger.error(f"Error conectando a la base de datos local PostgreSQL: {e}")
-            self.conn = None
-            self.client = None
+        # Configuración mejorada de timeouts para Jetson Nano
+        self.connection_timeout = 15  # Aumentado de 3s a 15s
+        self.query_timeout = 30       # Timeout para queries complejas
+        self.max_retries = 3          # Máximo 3 reintentos
+        self.retry_delay = 2          # 2 segundos entre reintentos
+        
+        # Estado de conexión
+        self.conn = None
+        self.last_connection_attempt = 0
+        self.connection_failures = 0
+        
+        # Intentar conexión inicial
+        self._connect_with_retry()
 
-    def get_recent_data(self, device_id: str, limit: int = 100) -> List[Dict]:
-        """Obtener los datos más recientes de un dispositivo desde la base de datos local PostgreSQL"""
-        if not self.conn:
-            return []
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute("SELECT * FROM sensor_data WHERE device_id = %s ORDER BY timestamp DESC LIMIT %s;", (device_id, limit))
-                columns = [desc[0] for desc in cur.description]
-                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+    def _connect_with_retry(self) -> bool:
+        """Conectar a PostgreSQL con reintentos automáticos"""
+        for attempt in range(self.max_retries):
+            try:
+                self.last_connection_attempt = time.time()
                 
-                # Convertir timestamps a string para serialización
-                for row in data:
-                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                        row['timestamp'] = row['timestamp'].isoformat()
-                        
-            return data
+                # Configuración de conexión optimizada para Jetson Nano
+                self.conn = psycopg2.connect(
+                    dbname=os.getenv('DB_NAME', 'iot_db'),
+                    user=os.getenv('DB_USER', 'iot_user'),
+                    password=os.getenv('DB_PASSWORD', 'DAms15820'),
+                    host=os.getenv('DB_HOST', 'localhost'),
+                    port=os.getenv('DB_PORT', '5432'),
+                    connect_timeout=self.connection_timeout,
+                    # Configuraciones adicionales para estabilidad
+                    options='-c statement_timeout=30000'  # 30s timeout para statements
+                )
+                
+                # Configurar autocommit para operaciones simples
+                self.conn.autocommit = True
+                
+                logger.info(f"✅ Conexión PostgreSQL establecida (intento {attempt + 1}/{self.max_retries})")
+                self.connection_failures = 0
+                return True
+                
+            except psycopg2.OperationalError as e:
+                self.connection_failures += 1
+                logger.warning(f"⚠️  Intento {attempt + 1}/{self.max_retries} falló: {e}")
+                
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2 ** attempt)  # Backoff exponencial
+                    logger.info(f"🔄 Reintentando en {delay}s...")
+                    time.sleep(delay)
+                else:
+                    logger.error(f"💥 Falló conexión PostgreSQL tras {self.max_retries} intentos")
+                    self.conn = None
+                    
+            except Exception as e:
+                logger.error(f"❌ Error inesperado conectando a PostgreSQL: {e}")
+                self.conn = None
+                break
+        
+        return False
+
+    def _ensure_connection(self) -> bool:
+        """Asegurar que la conexión esté activa, reconectar si es necesario"""
+        try:
+            # Verificar si la conexión está activa
+            if self.conn and not self.conn.closed:
+                # Test rápido de conectividad
+                with self.conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    cur.fetchone()
+                return True
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            logger.warning("🔌 Conexión PostgreSQL perdida, intentando reconectar...")
         except Exception as e:
-            logger.error(f"Error obteniendo datos recientes de {device_id} desde base local: {e}")
+            logger.warning(f"⚠️  Error verificando conexión: {e}")
+        
+        # Reconectar si es necesario
+        return self._connect_with_retry()
+
+    def _execute_with_retry(self, query: str, params: tuple = None) -> Optional[List[Dict]]:
+        """Ejecutar query con reintentos automáticos y manejo de errores"""
+        
+        for attempt in range(self.max_retries):
+            try:
+                # Asegurar conexión activa
+                if not self._ensure_connection():
+                    logger.error(f"No se pudo establecer conexión (intento {attempt + 1})")
+                    continue
+                
+                with self.conn.cursor() as cur:
+                    # Ejecutar query con timeout
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    
+                    # Si es SELECT, retornar resultados
+                    if query.strip().upper().startswith('SELECT'):
+                        columns = [desc[0] for desc in cur.description]
+                        rows = cur.fetchall()
+                        data = [dict(zip(columns, row)) for row in rows]
+                        
+                        # Convertir timestamps para serialización JSON
+                        for row in data:
+                            for key, value in row.items():
+                                if hasattr(value, 'isoformat'):
+                                    row[key] = value.isoformat()
+                        
+                        return data
+                    else:
+                        # Para INSERT/UPDATE/DELETE, retornar número de filas afectadas
+                        return [{"affected_rows": cur.rowcount}]
+                
+            except psycopg2.OperationalError as e:
+                logger.warning(f"🔄 Error operacional PostgreSQL (intento {attempt + 1}): {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay)
+                    continue
+                else:
+                    logger.error(f"💥 Query falló tras {self.max_retries} intentos: {query[:100]}...")
+                    
+            except psycopg2.DatabaseError as e:
+                logger.error(f"❌ Error de base de datos: {e}")
+                break  # No reintentar errores de BD (syntax, constraints, etc.)
+                
+            except Exception as e:
+                logger.error(f"❌ Error inesperado ejecutando query: {e}")
+                break
+        
+        return None
+
+    def get_recent_data(self, device_id: str, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Obtener los datos más recientes de un dispositivo con manejo robusto de errores"""
+        query = """
+            SELECT * FROM sensor_data 
+            WHERE device_id = %s 
+            ORDER BY timestamp DESC 
+            LIMIT %s OFFSET %s
+        """
+        
+        try:
+            result = self._execute_with_retry(query, (device_id, limit, offset))
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} registros recientes para {device_id}")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener datos recientes para {device_id}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo datos recientes de {device_id}: {e}")
             return []
 
     def get_data_by_hours(self, device_id: str, hours: float) -> List[Dict]:
-        """Obtener datos de un dispositivo desde las últimas N horas"""
-        if not self.conn:
-            return []
+        """Obtener datos de un dispositivo desde las últimas N horas con manejo robusto"""
+        query = """
+            SELECT * FROM sensor_data 
+            WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s hours'
+            ORDER BY timestamp DESC
+        """
+        
         try:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    SELECT * FROM sensor_data 
-                    WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s hours'
-                    ORDER BY timestamp DESC
-                """, (device_id, hours))
-                columns = [desc[0] for desc in cur.description]
-                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+            result = self._execute_with_retry(query, (device_id, hours))
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} registros ({hours}h) para {device_id}")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener datos por horas para {device_id}")
+                return []
                 
-                # Convertir timestamps a string para serialización
-                for row in data:
-                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                        row['timestamp'] = row['timestamp'].isoformat()
-                        
-            return data
         except Exception as e:
-            logger.error(f"Error obteniendo datos por horas de {device_id} desde base local: {e}")
+            logger.error(f"❌ Error obteniendo datos por horas de {device_id}: {e}")
             return []
 
     def get_data_by_days(self, device_id: str, days: int) -> List[Dict]:
-        """Obtener datos de un dispositivo desde los últimos N días"""
-        if not self.conn:
-            return []
+        """Obtener datos de un dispositivo desde los últimos N días con manejo robusto"""
+        query = """
+            SELECT * FROM sensor_data 
+            WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+            ORDER BY timestamp DESC
+        """
+        
         try:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    SELECT * FROM sensor_data 
-                    WHERE device_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
-                    ORDER BY timestamp DESC
-                """, (device_id, days))
-                columns = [desc[0] for desc in cur.description]
-                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+            result = self._execute_with_retry(query, (device_id, days))
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} registros ({days}d) para {device_id}")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener datos por días para {device_id}")
+                return []
                 
-                # Convertir timestamps a string para serialización
-                for row in data:
-                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                        row['timestamp'] = row['timestamp'].isoformat()
-                        
-            return data
         except Exception as e:
-            logger.error(f"Error obteniendo datos por días de {device_id} desde base local: {e}")
+            logger.error(f"❌ Error obteniendo datos por días de {device_id}: {e}")
             return []
 
     def get_all_data_by_hours(self, hours: float) -> List[Dict]:
-        """Obtener datos de todos los dispositivos desde las últimas N horas"""
-        if not self.conn:
-            return []
+        """Obtener datos de todos los dispositivos desde las últimas N horas con manejo robusto"""
+        query = """
+            SELECT * FROM sensor_data 
+            WHERE timestamp >= NOW() - INTERVAL '%s hours'
+            ORDER BY timestamp DESC
+        """
+        
         try:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    SELECT * FROM sensor_data 
-                    WHERE timestamp >= NOW() - INTERVAL '%s hours'
-                    ORDER BY timestamp DESC
-                """, (hours,))
-                columns = [desc[0] for desc in cur.description]
-                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+            result = self._execute_with_retry(query, (hours,))
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} registros totales ({hours}h)")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener datos globales por horas")
+                return []
                 
-                # Convertir timestamps a string para serialización
-                for row in data:
-                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                        row['timestamp'] = row['timestamp'].isoformat()
-                        
-            return data
         except Exception as e:
-            logger.error(f"Error obteniendo todos los datos por horas desde base local: {e}")
+            logger.error(f"❌ Error obteniendo datos globales por horas: {e}")
             return []
 
     def get_all_data_by_days(self, days: int) -> List[Dict]:
-        """Obtener datos de todos los dispositivos desde los últimos N días"""
-        if not self.conn:
-            return []
+        """Obtener datos de todos los dispositivos desde los últimos N días con manejo robusto"""
+        query = """
+            SELECT * FROM sensor_data 
+            WHERE timestamp >= NOW() - INTERVAL '%s days'
+            ORDER BY timestamp DESC
+        """
+        
         try:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    SELECT * FROM sensor_data 
-                    WHERE timestamp >= NOW() - INTERVAL '%s days'
-                    ORDER BY timestamp DESC
-                """, (days,))
-                columns = [desc[0] for desc in cur.description]
-                data = [dict(zip(columns, row)) for row in cur.fetchall()]
+            result = self._execute_with_retry(query, (days,))
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} registros totales ({days}d)")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener datos globales por días")
+                return []
                 
-                # Convertir timestamps a string para serialización
-                for row in data:
-                    if 'timestamp' in row and hasattr(row['timestamp'], 'isoformat'):
-                        row['timestamp'] = row['timestamp'].isoformat()
-                        
-            return data
         except Exception as e:
-            logger.error(f"Error obteniendo todos los datos por días desde base local: {e}")
+            logger.error(f"❌ Error obteniendo datos globales por días: {e}")
+            return []
+
+    def get_devices(self) -> List[Dict]:
+        """Obtener lista de todos los dispositivos con manejo robusto"""
+        query = "SELECT * FROM devices ORDER BY last_seen DESC"
+        
+        try:
+            result = self._execute_with_retry(query)
+            if result is not None:
+                logger.debug(f"📊 Obtenidos {len(result)} dispositivos")
+                return result
+            else:
+                logger.warning(f"⚠️  No se pudieron obtener dispositivos")
+                return []
+                
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo dispositivos: {e}")
             return []
 
     def execute_query(self, query: str, params: tuple = None) -> List[Dict]:
