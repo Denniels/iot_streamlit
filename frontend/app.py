@@ -257,7 +257,9 @@ class IoTDashboard:
             params = {}
             
             # Configurar parámetros según el rango de tiempo
-            if time_range == "hour":
+            if time_range == "real_time":
+                params['hours'] = 0.17  # Aproximadamente 10 minutos (10/60 = 0.167)
+            elif time_range == "hour":
                 params['hours'] = 1
             elif time_range == "day": 
                 params['days'] = 1
