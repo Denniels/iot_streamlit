@@ -21,7 +21,7 @@ def main():
     acquisition = DataAcquisition()
     
     # Debug: verificar conexión a base de datos
-    if acquisition.db_client.conn:
+    if acquisition.db_client.health_check():
         logger.info("✅ Cliente de base de datos conectado exitosamente")
         print("✅ Cliente de base de datos conectado exitosamente")
     else:

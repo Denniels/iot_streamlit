@@ -694,11 +694,17 @@ async def frontend_ping(request: dict = None):
         ua = metadata.get('user_agent') if isinstance(metadata, dict) else None
 
         # Registrar en system_events
+        timestamp = metadata.get('timestamp') if isinstance(metadata, dict) else None
         db_client.log_system_event(
             event_type='frontend_ping',
-            device_id=None,
             message='Frontend Ping recibido',
-            metadata={'origin': origin, 'user_agent': ua}
+            device_id=None,
+            metadata={
+                'timestamp': timestamp, 
+                'source': 'frontend',
+                'origin': origin,
+                'user_agent': ua
+            }
         )
 
         return {"success": True, "message": "Ping registrado"}
@@ -725,6 +731,34 @@ async def get_system_logs(limit: int = 50):
         raise HTTPException(
             status_code=500,
             detail="Error obteniendo logs del sistema"
+        )
+
+
+@app.get("/admin/pool_status")
+async def get_pool_status():
+    """Obtener estadísticas del pool de conexiones PostgreSQL"""
+    try:
+        from backend.connection_pool import get_connection_pool
+        pool = get_connection_pool()
+        
+        # Obtener estadísticas del pool
+        stats = pool.get_pool_stats()
+        
+        # Verificar salud del pool
+        is_healthy = pool.health_check()
+        
+        return {
+            "success": True,
+            "pool_healthy": is_healthy,
+            "statistics": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estado del pool: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error obteniendo estado del pool de conexiones"
         )
 
 

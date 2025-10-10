@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from psycopg2 import pool
 import psycopg2.extras
+import psycopg2.errors
 from backend.config import get_logger
 
 logger = get_logger(__name__)
@@ -20,9 +21,9 @@ class PostgreSQLConnectionPool:
     def __init__(self):
         # Configuración optimizada para Jetson Nano (RAM limitada)
         self.min_connections = 2       # Mínimo 2 conexiones siempre disponibles
-        self.max_connections = 8       # Máximo 8 conexiones (conservar memoria)
-        self.connection_timeout = 15   # 15s timeout para conexión
-        self.query_timeout = 30        # 30s timeout para queries
+        self.max_connections = 6       # Reducido de 8 a 6 para conservar memoria
+        self.connection_timeout = 20   # Aumentado de 15s a 20s
+        self.query_timeout = 60        # Aumentado de 30s a 60s para queries complejas
         
         # Pool de conexiones
         self.pool = None
@@ -52,8 +53,8 @@ class PostgreSQLConnectionPool:
                 'user': os.getenv('DB_USER', 'iot_user'),
                 'password': os.getenv('DB_PASSWORD', 'DAms15820'),
                 'connect_timeout': self.connection_timeout,
-                # Optimizaciones para Jetson Nano
-                'options': '-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000'
+                # Optimizaciones para Jetson Nano - timeouts más generosos
+                'options': '-c statement_timeout=60000 -c idle_in_transaction_session_timeout=120000'
             }
             
             # Crear pool threadsafe
@@ -115,15 +116,37 @@ class PostgreSQLConnectionPool:
                     logger.error(f"❌ Error devolviendo conexión al pool: {e}")
     
     def execute_query(self, query: str, params: tuple = None, fetch: bool = True) -> Optional[List[Dict[str, Any]]]:
-        """Ejecutar consulta usando el pool de conexiones"""
+        """Ejecutar consulta usando el pool de conexiones con timeouts inteligentes"""
+        
+        # Determinar timeout basado en el tipo de query
+        query_lower = query.lower().strip()
+        is_heavy_query = any(keyword in query_lower for keyword in [
+            'sensor_data', 'interval', 'group by', 'order by', 'join'
+        ])
+        
+        # Timeout más generoso para queries pesadas
+        timeout_ms = (self.query_timeout * 2 * 1000) if is_heavy_query else (self.query_timeout * 1000)
+        
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                    # Configurar timeout para la consulta
-                    cursor.execute(f"SET statement_timeout = {self.query_timeout * 1000}")
+                    # Configurar timeout dinámico para la consulta
+                    cursor.execute(f"SET statement_timeout = {timeout_ms}")
+                    
+                    # Log para queries pesadas
+                    if is_heavy_query:
+                        logger.debug(f"🐌 Ejecutando query pesada (timeout: {timeout_ms/1000}s): {query[:100]}...")
+                    
+                    start_time = time.time()
                     
                     # Ejecutar consulta
                     cursor.execute(query, params)
+                    
+                    execution_time = time.time() - start_time
+                    
+                    # Log si la query tomó mucho tiempo
+                    if execution_time > 5:
+                        logger.warning(f"⏱️ Query lenta ({execution_time:.2f}s): {query[:100]}...")
                     
                     if fetch and cursor.description:
                         results = cursor.fetchall()
@@ -134,6 +157,11 @@ class PostgreSQLConnectionPool:
                         # INSERT, UPDATE, DELETE
                         return [{"affected_rows": cursor.rowcount}]
                         
+        except psycopg2.errors.QueryCanceled as e:
+            logger.error(f"⏰ Query cancelada por timeout ({timeout_ms/1000}s): {query[:100]}...")
+            self.stats['connection_errors'] += 1
+            self.stats['last_error'] = f"Query timeout: {str(e)}"
+            return None
         except Exception as e:
             logger.error(f"❌ Error ejecutando consulta: {e}")
             logger.error(f"📝 Query: {query[:200]}...")

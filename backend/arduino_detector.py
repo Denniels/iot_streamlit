@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, List
 import time
 import subprocess
 from backend.config import Config, get_logger
-from backend.db_writer import LocalPostgresClient
+from backend.pooled_postgres_client import PooledPostgresClient
 
 logger = get_logger(__name__)
 
@@ -93,7 +93,7 @@ class ArduinoDetector:
         self.logger.info("⏳ Lectura periódica USB iniciada (cada 5s, envío dashboard cada 10s)")
     """Detector y comunicador para Arduinos USB y Ethernet"""
     
-    def __init__(self, db_client: LocalPostgresClient):
+    def __init__(self, db_client: PooledPostgresClient):
         self.db_client = db_client
         self.logger = logger  # Usar el logger del módulo
         self.usb_connection = None

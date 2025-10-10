@@ -81,7 +81,8 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
-    "https://cabinets-extraction-affairs-plant.trycloudflare.com",  # URL actual Oct 9, 2025 - 18:34 (con mejoras de estabilidad)
+    "https://wake-fascinating-exploration-fuel.trycloudflare.com",  # URL actual Oct 9, 2025 - 21:20 (auto-recovery post-reinicio)
+    "https://cabinets-extraction-affairs-plant.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:34 (con mejoras de estabilidad)
     "https://coated-clark-separated-bill.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:13 (más reciente)
     "https://licensed-again-players-debate.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:52 (post-reinicio)
     "https://flash-words-knife-joining.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:18

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 
 from backend.config import get_logger, Config
-from backend.db_writer import LocalPostgresClient
+from backend.pooled_postgres_client import PooledPostgresClient
 from backend.arduino_detector import ArduinoDetector
 from backend.device_scanner import DeviceScanner
 from backend.modbus_scanner import ModbusScanner
@@ -34,7 +34,7 @@ class DataAcquisition:
     """
 
     def __init__(self):
-        self.db_client = LocalPostgresClient()
+        self.db_client = PooledPostgresClient()
         self.arduino_detector = ArduinoDetector(self.db_client)
         self.device_scanner = DeviceScanner(self.db_client)
         self.modbus_scanner = ModbusScanner(self.db_client)
@@ -196,7 +196,11 @@ class DataAcquisition:
                                         'status': 'online',
                                         'metadata': metadata
                                     })
-                                    self.db_client.log_system_event('device_reconciled', device_id, f'IP actualizada a {new_ip}:{new_port}')
+                                    self.db_client.log_system_event(
+                                        event_type='device_reconciled', 
+                                        message=f'IP actualizada a {new_ip}:{new_port}',
+                                        device_id=device_id
+                                    )
                                 except Exception as e:
                                     logger.error(f"Fallo actualizando BD para {device_id}: {e}")
 

@@ -239,19 +239,19 @@ class PooledPostgresClient:
             logger.error(f"❌ Error guardando lote de datos de sensores: {e}")
             return False
     
-    def log_system_event(self, event_type: str, description: str, device_id: str = None, severity: str = 'info') -> bool:
+    def log_system_event(self, event_type: str, message: str, device_id: str = None, metadata: dict = None) -> bool:
         """Registrar evento del sistema"""
         try:
             query = """
-                INSERT INTO system_events (event_type, description, device_id, severity, timestamp)
+                INSERT INTO system_events (event_type, message, device_id, metadata, timestamp)
                 VALUES (%s, %s, %s, %s, %s)
             """
             
             params = (
                 event_type,
-                description,
+                message,
                 device_id,
-                severity,
+                metadata if metadata else {},
                 datetime.now(timezone.utc)
             )
             
@@ -274,6 +274,16 @@ class PooledPostgresClient:
         """Limpiar cache de consultas"""
         self.query_cache.clear()
         logger.info("🧹 Cache de consultas limpiado")
+    
+    # === MÉTODOS ALIAS PARA COMPATIBILIDAD CON CÓDIGO EXISTENTE ===
+    
+    def insert_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
+        """Alias para save_sensor_data (compatibilidad con LocalPostgresClient)"""
+        return self.save_sensor_data(sensor_data)
+    
+    def register_device(self, device_data: Dict[str, Any]) -> bool:
+        """Alias para save_device (compatibilidad con LocalPostgresClient)"""
+        return self.save_device(device_data)
 
 
 # Factory functions para compatibilidad con código existente
