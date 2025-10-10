@@ -133,12 +133,22 @@ class PostgreSQLConnectionPool:
         
         return tuple(serialized)
     
-    def execute_query(self, query: str, params: tuple = None, fetch: bool = True) -> Optional[List[Dict[str, Any]]]:
+    def execute_query(self, query: str, params = None, fetch: bool = True) -> Optional[List[Dict[str, Any]]]:
         """Ejecutar consulta usando el pool de conexiones con timeouts inteligentes"""
         
         # Serializar parámetros para evitar errores de tipo
         if params:
-            params = self._serialize_params(params)
+            # Si es un diccionario, convertir valores dict a JSON
+            if isinstance(params, dict):
+                serialized_params = {}
+                for key, value in params.items():
+                    if isinstance(value, dict):
+                        serialized_params[key] = json.dumps(value)
+                    else:
+                        serialized_params[key] = value
+                params = serialized_params
+            elif isinstance(params, (tuple, list)):
+                params = self._serialize_params(params)
         
         # Determinar timeout basado en el tipo de query
         query_lower = query.lower().strip()
