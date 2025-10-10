@@ -25,10 +25,10 @@ class DeviceScanner:
         try:
             # Obtener interfaz de red principal
             gateways = netifaces.gateways()
-            default_gateway = gateways['default'][netifaces.AF_INET][1]
+            default_interface = gateways['default'][netifaces.AF_INET][1]
             
             # Obtener direcciones de la interfaz
-            interface_info = netifaces.ifaddresses(default_gateway)
+            interface_info = netifaces.ifaddresses(default_interface)
             ip_info = interface_info[netifaces.AF_INET][0]
             
             ip = ip_info['addr']
