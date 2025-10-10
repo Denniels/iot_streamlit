@@ -6,6 +6,7 @@ Maneja conexiones de forma eficiente con límites apropiados para hardware limit
 import os
 import time
 import threading
+import json
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from psycopg2 import pool
@@ -115,8 +116,29 @@ class PostgreSQLConnectionPool:
                 except Exception as e:
                     logger.error(f"❌ Error devolviendo conexión al pool: {e}")
     
+    def _serialize_params(self, params: tuple) -> tuple:
+        """Serializar parámetros para PostgreSQL, convirtiendo dicts a JSON"""
+        if not params:
+            return params
+        
+        serialized = []
+        for param in params:
+            if isinstance(param, dict):
+                # Convertir diccionarios a JSON string
+                serialized.append(json.dumps(param))
+            elif param is None:
+                serialized.append(None)
+            else:
+                serialized.append(param)
+        
+        return tuple(serialized)
+    
     def execute_query(self, query: str, params: tuple = None, fetch: bool = True) -> Optional[List[Dict[str, Any]]]:
         """Ejecutar consulta usando el pool de conexiones con timeouts inteligentes"""
+        
+        # Serializar parámetros para evitar errores de tipo
+        if params:
+            params = self._serialize_params(params)
         
         # Determinar timeout basado en el tipo de query
         query_lower = query.lower().strip()
@@ -172,9 +194,12 @@ class PostgreSQLConnectionPool:
     def execute_many(self, query: str, params_list: List[tuple]) -> bool:
         """Ejecutar múltiples consultas en lote (más eficiente)"""
         try:
+            # Serializar todos los parámetros
+            serialized_params = [self._serialize_params(params) for params in params_list]
+            
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
-                    cursor.executemany(query, params_list)
+                    cursor.executemany(query, serialized_params)
                     logger.debug(f"📦 Ejecutadas {len(params_list)} consultas en lote")
                     return True
         except Exception as e:
