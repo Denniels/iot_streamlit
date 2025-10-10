@@ -209,13 +209,11 @@ class ResilientCloudflareManager:
         try:
             logger.info(f"🚀 Iniciando cloudflared (intento {self.restart_count + 1}/{MAX_RESTART_ATTEMPTS})")
             
-            # Comando optimizado para Jetson Nano
+            # Comando básico para Jetson Nano (sin argumentos no soportados)
             cmd = [
                 CLOUDFLARED_BIN, 'tunnel', 
                 '--url', BACKEND_URL, 
-                '--no-autoupdate',
-                '--retries', '2',           # Reintentos internos de cloudflared
-                '--retry-backoff', '10s'    # Backoff interno
+                '--no-autoupdate'
             ]
             
             self.process = subprocess.Popen(
@@ -234,11 +232,12 @@ class ResilientCloudflareManager:
             logger.info(f"⏳ Esperando detección de URL del túnel (timeout: {TUNNEL_STARTUP_TIMEOUT}s)...")
             
             for line in self.process.stdout:
-                logger.debug(f"📋 Cloudflared: {line.strip()}")
+                line_stripped = line.strip()
+                logger.info(f"📋 Cloudflared: {line_stripped}")  # Cambio: siempre mostrar líneas para debug
                 
                 # Buscar URL del túnel
                 if not url_detected:
-                    match = tunnel_url_re.search(line)
+                    match = tunnel_url_re.search(line_stripped)
                     if match:
                         new_url = match.group(0)
                         logger.info(f"🎯 URL del túnel detectada: {new_url}")

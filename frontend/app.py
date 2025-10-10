@@ -81,16 +81,16 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
-    "https://wake-fascinating-exploration-fuel.trycloudflare.com",  # URL actual Oct 9, 2025 - 21:20 (auto-recovery post-reinicio)
-    "https://cabinets-extraction-affairs-plant.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:34 (con mejoras de estabilidad)
-    "https://coated-clark-separated-bill.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:13 (más reciente)
-    "https://licensed-again-players-debate.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:52 (post-reinicio)
+    "https://hotels-size-imposed-alpine.trycloudflare.com",  # URL actual Oct 9, 2025 - 22:45 (servicio resiliente)
+    "https://warm-procedures-rick-rotary.trycloudflare.com",  # URL anterior Oct 9, 2025 - 22:40 (test manual)
+    "https://adventure-extreme-adjust-clicking.trycloudflare.com",  # URL anterior Oct 9, 2025 - 22:32
+    "https://wake-fascinating-exploration-fuel.trycloudflare.com",  # URL anterior Oct 9, 2025 - 21:20 
+    "https://cabinets-extraction-affairs-plant.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:34 
+    "https://coated-clark-separated-bill.trycloudflare.com",  # URL anterior Oct 9, 2025 - 18:13 
+    "https://licensed-again-players-debate.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:52 
     "https://flash-words-knife-joining.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:18
     "https://worthy-votes-mph-principles.trycloudflare.com",  # URL anterior Oct 9, 2025 - 16:20
-    "https://ver-designers-fate-extraction.trycloudflare.com",  # URL anterior Oct 9, 2025 - 15:29
-    "https://king-stockings-networking-categories.trycloudflare.com",  # URL anterior Oct 9, 2025
-    "https://lcd-positioning-loose-maximize.trycloudflare.com", 
-    "https://thou-resumes-whom-east.trycloudflare.com"
+    "https://ver-designers-fate-extraction.trycloudflare.com"  # URL anterior Oct 9, 2025 - 15:29
 ]
 
 def handle_api_error(e, operation="API call", show_error=True):
