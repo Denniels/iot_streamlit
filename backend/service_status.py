@@ -5,7 +5,7 @@ SERVICES = {
     'acquire_data.service': 'Adquisición de Datos',
     'backend_api.service': 'API Backend',
     'sync_local_db.service': 'Sincronización DB',
-    'start_cloudflare_py.service': 'Túnel Cloudflare',
+    'start_cloudflare_resilient.service': 'Túnel Cloudflare',
 }
 
 def get_services_status() -> Dict[str, Dict]:
