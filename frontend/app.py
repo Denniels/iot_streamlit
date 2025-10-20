@@ -81,6 +81,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
+    "https://wonder-sufficiently-generator-click.trycloudflare.com",
     "https://respect-craps-lit-aged.trycloudflare.com",
     "https://exchange-ace-inclusive-attraction.trycloudflare.com",
     "https://nodes-avi-twelve-confident.trycloudflare.com",
