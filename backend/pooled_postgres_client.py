@@ -134,6 +134,15 @@ class PooledPostgresClient:
             if 'last_seen' not in device_data:
                 device_data['last_seen'] = datetime.now(timezone.utc)
             
+            # Asegurar que port sea un entero válido
+            if 'port' not in device_data or device_data['port'] is None:
+                device_data['port'] = 80  # Puerto por defecto
+            else:
+                try:
+                    device_data['port'] = int(device_data['port'])
+                except (ValueError, TypeError):
+                    device_data['port'] = 80  # Puerto por defecto si no es convertible
+            
             result = self.execute_query(query, device_data, use_cache=False)
             return result is not None
             
@@ -185,7 +194,7 @@ class PooledPostgresClient:
             return []
     
     def save_sensor_data(self, sensor_data: Dict[str, Any]) -> bool:
-        """Guardar datos de sensor"""
+        """Guardar datos de sensor y actualizar last_seen del dispositivo"""
         try:
             query = """
                 INSERT INTO sensor_data (device_id, sensor_type, value, unit, raw_data, timestamp)
@@ -201,6 +210,19 @@ class PooledPostgresClient:
                 sensor_data['raw_data'] = json.dumps(sensor_data['raw_data'])
             
             result = self.execute_query(query, sensor_data, use_cache=False)
+            
+            # Actualizar last_seen del dispositivo si el insert fue exitoso
+            if result is not None:
+                update_query = """
+                    UPDATE devices 
+                    SET last_seen = %(timestamp)s, updated_at = %(timestamp)s 
+                    WHERE device_id = %(device_id)s
+                """
+                self.execute_query(update_query, {
+                    'device_id': sensor_data['device_id'],
+                    'timestamp': sensor_data['timestamp']
+                }, use_cache=False)
+            
             return result is not None
             
         except Exception as e:

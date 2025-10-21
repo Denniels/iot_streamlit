@@ -81,7 +81,8 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
-    "https://liquid-streaming-welding-something.trycloudflare.com",  # URL actual Oct 21, 2025 - 19:57 (migración a Arch server)
+    "https://wheel-wind-scanning-indicate.trycloudflare.com",  # URL actual Oct 21, 2025 - 18:09 (reinicio completo servicios)
+    "https://liquid-streaming-welding-something.trycloudflare.com",  # URL anterior Oct 21, 2025 - 19:57 (migración a Arch server)
     "https://wonder-sufficiently-generator-click.trycloudflare.com",
     "https://respect-craps-lit-aged.trycloudflare.com",
     "https://exchange-ace-inclusive-attraction.trycloudflare.com",
