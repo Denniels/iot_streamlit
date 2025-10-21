@@ -1,0 +1,40 @@
+[Unit]
+Description=Servicio Cloudflare Tunnel Resiliente (Python) para IoT Jetson Nano
+After=network.target backend_api.service
+Wants=backend_api.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/venv"
+Environment="PATH=/home/daniel/repos/iot_streamlit/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Esperar a que la API esté lista
+ExecStartPre=/bin/sleep 10
+
+# Usar la versión resiliente del script
+ExecStart=/home/daniel/repos/iot_streamlit/venv/bin/python /home/daniel/repos/iot_streamlit/backend/cloudflare_tunnel_resilient.py
+
+# Configuración de restart optimizada para Jetson Nano
+Restart=always
+RestartSec=30
+StartLimitInterval=300
+StartLimitBurst=3
+
+# Configuración de recursos para Jetson Nano
+MemoryMax=200M
+CPUQuota=50%
+
+# Configuración de logging
+StandardOutput=journal
+StandardError=journal
+
+# Signal handling
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

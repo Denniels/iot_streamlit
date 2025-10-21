@@ -1,0 +1,37 @@
+<svg width="100%" height="220" viewBox="0 0 1200 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Extract: Sensores y Jetson -->
+  <g>
+    <rect x="60" y="60" width="90" height="90" rx="18" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <circle cx="105" cy="105" r="18" fill="#FF9900"/>
+    <rect x="170" y="75" width="110" height="60" rx="12" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <rect x="190" y="95" width="70" height="30" rx="6" fill="#FF9900" opacity="0.2"/>
+    <text x="165" y="200" font-size="30" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Captura</text>
+    <text x="165" y="215" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Sensores & Jetson</text>
+  </g>
+  <!-- Flecha 1 (corta, delgada y centrada) -->
+  <polyline points="285,110 355,110" stroke="#FF9900" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <!-- Transform: Procesamiento (desplazado a la derecha) -->
+  <g>
+    <ellipse cx="420" cy="110" rx="60" ry="60" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <path d="M390 110 Q420 60 450 110 Q420 160 390 110" fill="#FF9900" opacity="0.2"/>
+    <text x="420" y="200" font-size="30" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Procesa</text>
+    <text x="420" y="215" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Validación & Organización</text>
+  </g>
+  <!-- Flecha 2 (corta, delgada y centrada) -->
+  <polyline points="490,110 570,110" stroke="#FF9900" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <!-- Load: Dashboard/Nube (desplazado a la derecha) -->
+  <g>
+    <ellipse cx="660" cy="110" rx="60" ry="45" fill="white" stroke="#FF9900" stroke-width="4"/>
+    <rect x="630" y="90" width="60" height="35" rx="7" fill="#FF9900" opacity="0.2"/>
+    <polyline points="660,65 660,90" stroke="#FF9900" stroke-width="4"/>
+    <polygon points="650,75 660,55 670,75" fill="#FF9900"/>
+    <text x="660" y="200" font-size="30" font-family="Arial" fill="#FF9900" font-weight="bold" text-anchor="middle">Visualiza</text>
+    <text x="660" y="215" font-size="18" font-family="Arial" fill="#333" text-anchor="middle">Dashboard & Nube</text>
+  </g>
+  <!-- Definición de flecha -->
+  <defs>
+    <marker id="arrowhead" markerWidth="16" markerHeight="12" refX="16" refY="6" orient="auto">
+      <polygon points="0 0, 16 6, 0 12" fill="#FF9900"/>
+    </marker>
+  </defs>
+</svg>

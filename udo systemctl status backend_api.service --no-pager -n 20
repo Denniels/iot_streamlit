@@ -1,0 +1,24 @@
+ id  |    event_type     |    device_id    |              message              |                                              metadata                                               |           timestamp           
+-----+-------------------+-----------------+-----------------------------------+-----------------------------------------------------------------------------------------------------+-------------------------------
+ 580 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:42:42.53725-04
+ 579 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:42:17.26617-04
+ 578 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:41:44.637375-04
+ 577 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:40:53.460121-04
+ 576 | device_reconciled | arduino_eth_001 | IP actualizada a 192.168.0.101:80 |                                                                                                     | 2025-08-21 00:40:46.24211-04
+ 575 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:40:22.731584-04
+ 574 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:39:53.256586-04
+ 573 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:39:50.672714-04
+ 572 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:39:06.05304-04
+ 571 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:38:44.690391-04
+ 570 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:38:01.345583-04
+ 569 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:37:29.965304-04
+ 568 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:37:29.392825-04
+ 567 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:36:41.871006-04
+ 566 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:36:13.931891-04
+ 565 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:35:44.385684-04
+ 564 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:34:54.261578-04
+ 563 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:34:23.449403-04
+ 562 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:33:52.98869-04
+ 561 | frontend_ping     |                 | Frontend Ping recibido            | {"origin": "https://frame-tool-fairly-bonus.trycloudflare.com", "user_agent": "streamlit-frontend"} | 2025-08-21 00:33:23.171147-04
+(20 rows)
+

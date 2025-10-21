@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  iot-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iot-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    devices:
+      # Arduino USB (cambiar según tu dispositivo)
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+      - "/dev/ttyACM0:/dev/ttyACM0"
+    volumes:
+      - ./logs:/app/logs
+      - ./.env.local:/app/.env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    networks:
+      - iot-network
+    depends_on:
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:alpine
+    container_name: iot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iot-network
+    command: redis-server --appendonly yes
+    
+  # Opcional: Base de datos local PostgreSQL
+  # (usar solo si no usas Supabase)
+  # postgres:
+  #   image: postgres:13
+  #   container_name: iot-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: iot_streamlit
+  #     POSTGRES_USER: iot_user
+  #     POSTGRES_PASSWORD: iot_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - iot-network
+
+  # Opcional: Grafana para dashboards avanzados
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: iot-grafana
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   networks:
+  #     - iot-network
+
+volumes:
+  redis_data:
+  # postgres_data:
+  # grafana_data:
+
+networks:
+  iot-network:
+    driver: bridge
