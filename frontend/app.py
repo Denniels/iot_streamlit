@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import json
 from datetime import datetime, timedelta
-import pytz
 import time
 from streamlit_autorefresh import st_autorefresh
 
@@ -104,21 +103,6 @@ KNOWN_CF_URLS = [
     "https://flash-words-knife-joining.trycloudflare.com",  # URL anterior Oct 9, 2025 - 17:18
     "https://worthy-votes-mph-principles.trycloudflare.com"  # URL anterior Oct 9, 2025 - 16:20
 ]
-
-def convert_utc_to_local(df, timestamp_column='timestamp'):
-    """Convierte timestamps UTC a zona horaria local de Chile"""
-    if timestamp_column in df.columns:
-        # Asegurar que los timestamps estén en UTC
-        if not pd.api.types.is_datetime64_any_dtype(df[timestamp_column]):
-            df[timestamp_column] = pd.to_datetime(df[timestamp_column], utc=True)
-        elif df[timestamp_column].dt.tz is None:
-            df[timestamp_column] = df[timestamp_column].dt.tz_localize('UTC')
-        
-        # Convertir a zona horaria de Chile
-        chile_tz = pytz.timezone('America/Santiago')
-        df[timestamp_column] = df[timestamp_column].dt.tz_convert(chile_tz)
-    
-    return df
 
 def handle_api_error(e, operation="API call", show_error=True):
     """Maneja errores de API de manera consistente y user-friendly"""
@@ -573,8 +557,7 @@ class IoTDashboard:
                 st.metric("Última actualización", "Sin datos")
 
         # Aplicar filtro temporal local - DESACTIVADO (solo datos recientes)
-        df_device['timestamp'] = pd.to_datetime(df_device['timestamp'], utc=True)
-        df_device = convert_utc_to_local(df_device)  # Convertir a hora local de Chile
+        df_device['timestamp'] = pd.to_datetime(df_device['timestamp'])
         # if rango_seleccionado == "Personalizado" and 'rango_slider' in locals():
         #     df_device_filtrado = df_device[(df_device['timestamp'] >= rango_slider[0]) & (df_device['timestamp'] <= rango_slider[1])]
         # else:
@@ -618,8 +601,7 @@ class IoTDashboard:
                         else:
                             return 'Alto'
                     df_sensor['rango'] = df_sensor['value'].apply(temp_rango)
-                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'], utc=True)
-                    df_sensor = convert_utc_to_local(df_sensor)  # Convertir a hora local de Chile
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
                     
                     # Colores más atractivos
@@ -690,8 +672,7 @@ class IoTDashboard:
                 elif 'ldr' in sensor.lower() or 'luz' in sensor.lower() or 'light' in sensor.lower():
                     # Gráfico de línea para LDR con estilo mejorado
                     df_sensor['value'] = pd.to_numeric(df_sensor['value'], errors='coerce')
-                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'], utc=True)
-                    df_sensor = convert_utc_to_local(df_sensor)  # Convertir a hora local de Chile
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
                     
                     fig_ldr = go.Figure()
@@ -719,8 +700,7 @@ class IoTDashboard:
                 else:
                     # Gráfico de línea simple para otros sensores con estilo mejorado
                     df_sensor['value'] = pd.to_numeric(df_sensor['value'], errors='coerce')
-                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'], utc=True)
-                    df_sensor = convert_utc_to_local(df_sensor)  # Convertir a hora local de Chile
+                    df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
                     
                     # Crear gráfico con gradiente de colores
@@ -786,7 +766,7 @@ class IoTDashboard:
         if 'raw_data' in df.columns:
             df['raw_data'] = df['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
         if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values('timestamp')
             # Gráfico temporal
             if 'sensor_data' in df.columns:
