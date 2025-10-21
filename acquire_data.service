@@ -1,0 +1,17 @@
+[Unit]
+Description=Servicio de adquisición de datos desde Arduino USB
+After=network.target
+
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/.iot_streamlit"
+Environment="PATH=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/daniel/repos/iot_streamlit/.iot_streamlit/bin/python /home/daniel/repos/iot_streamlit/acquire_data.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
