@@ -587,9 +587,13 @@ class IoTDashboard:
                 df_sensor = df_device_filtrado[df_device_filtrado['sensor_type'] == sensor].copy()
                 st.write(f"Datos para {sensor}: {len(df_sensor)} registros")
                 if 'temp' in sensor.lower():
+                    # Convertir valores a numéricos primero
+                    df_sensor['value'] = pd.to_numeric(df_sensor['value'], errors='coerce')
                     # Clasificar registros por rango (ajustado para datos reales)
                     def temp_rango(val):
-                        if val <= 35:
+                        if pd.isna(val):
+                            return 'N/A'
+                        elif val <= 35:
                             return 'Bajo'
                         elif val <= 42:
                             return 'Medio'
@@ -666,6 +670,7 @@ class IoTDashboard:
                         st.plotly_chart(fig_pie, use_container_width=True)
                 elif 'ldr' in sensor.lower() or 'luz' in sensor.lower() or 'light' in sensor.lower():
                     # Gráfico de línea para LDR con estilo mejorado
+                    df_sensor['value'] = pd.to_numeric(df_sensor['value'], errors='coerce')
                     df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
                     
@@ -693,6 +698,7 @@ class IoTDashboard:
                     st.plotly_chart(fig_ldr, use_container_width=True)
                 else:
                     # Gráfico de línea simple para otros sensores con estilo mejorado
+                    df_sensor['value'] = pd.to_numeric(df_sensor['value'], errors='coerce')
                     df_sensor['timestamp'] = pd.to_datetime(df_sensor['timestamp'])
                     df_sensor = df_sensor.sort_values('timestamp')
                     
