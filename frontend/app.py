@@ -81,7 +81,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
-    url = "https://trunk-lynn-possibility-radio.trycloudflare.com",
+    "https://trunk-lynn-possibility-radio.trycloudflare.com"
     "https://conventional-packaging-sheffield-cycles.trycloudflare.com",
     "https://plain-state-refers-nutritional.trycloudflare.com",
     "https://wheel-wind-scanning-indicate.trycloudflare.com",  # URL actual Oct 21, 2025 - 18:09 (reinicio completo servicios)
