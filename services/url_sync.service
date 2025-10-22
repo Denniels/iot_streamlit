@@ -1,0 +1,42 @@
+[Unit]
+Description=URL Sync Monitor - Cloudflare Tunnel URL Synchronization
+Documentation=man:systemd.service(5)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=daniel
+Group=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+Environment=PATH=/home/daniel/repos/iot_streamlit/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/daniel/repos/iot_streamlit/venv/bin/python /home/daniel/repos/iot_streamlit/scripts/url_sync_monitor.py
+
+# Configuración de reinicio
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Configuración de logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=url-sync-monitor
+
+# Configuración de seguridad
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/daniel/repos/iot_streamlit
+
+# Límites de recursos
+MemoryMax=256M
+CPUQuota=50%
+
+# Configuración de señales
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
