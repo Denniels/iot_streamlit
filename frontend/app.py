@@ -81,6 +81,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
+    "https://financial-road-frequently-les.trycloudflare.com",  # URL actual Oct 23, 2025 - 02:32 (auto-sync)
     "https://photographers-theories-cricket-corporations.trycloudflare.com",  # URL actual Oct 23, 2025 - 01:52 (auto-sync)
     "https://returned-convenience-tower-switched.trycloudflare.com",  # URL actual Oct 23, 2025 - 01:01 (auto-sync)
     "https://reflect-wed-governmental-fisher.trycloudflare.com",  # URL actual Oct 23, 2025 - 00:13 (auto-sync)
