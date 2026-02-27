@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timedelta
 import time
 from streamlit_autorefresh import st_autorefresh
+from typing import Optional
 
 
 # Configuración de página
@@ -81,6 +82,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
+    "https://yoga-sunglasses-power-undertake.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:23 (auto-sync)
     "https://shopper-douglas-referrals-tuning.trycloudflare.com",  # URL actual Feb 27, 2026 - 16:57 (auto-sync)
     "https://api.trycloudflare.com",  # URL actual Feb 27, 2026 - 10:32 (auto-sync)
     "https://gore-presence-mit-tions.trycloudflare.com",  # URL actual Feb 26, 2026 - 23:34 (auto-sync)
@@ -656,6 +658,12 @@ class IoTDashboard:
         # Solo usar los datos ya filtrados de la API (últimos 10 min)
         df_device_filtrado = df_device.copy()
 
+        # Dashboard específico para Ender 3 (Klipper/Moonraker)
+        if selected_device == "ender3_raspi":
+            st.markdown("### 🖨️ Ender 3 (Klipper/Moonraker) — Vista de Producción")
+            self.render_ender3_dashboard(df_device_filtrado)
+            return
+
         # Visualización de variables mejorada
         st.markdown("### 📈 Gráficos de variables")
         
@@ -666,7 +674,16 @@ class IoTDashboard:
         
         if not df_device_filtrado.empty:
             st.write(f"- Tipos de sensores únicos: {df_device_filtrado['sensor_type'].unique().tolist() if 'sensor_type' in df_device_filtrado.columns else 'No sensor_type column'}")
-            st.write(f"- Rango de valores: {df_device_filtrado['value'].min() if 'value' in df_device_filtrado.columns else 'No value column'} - {df_device_filtrado['value'].max() if 'value' in df_device_filtrado.columns else 'No value column'}")
+            if 'value' in df_device_filtrado.columns:
+                values_num = pd.to_numeric(df_device_filtrado['value'], errors='coerce')
+                vmin = values_num.min(skipna=True)
+                vmax = values_num.max(skipna=True)
+                if pd.isna(vmin) or pd.isna(vmax):
+                    st.write("- Rango de valores: N/A (sin valores numéricos)")
+                else:
+                    st.write(f"- Rango de valores: {vmin} - {vmax}")
+            else:
+                st.write("- Rango de valores: No value column")
         
         if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns and 'value' in df_device_filtrado.columns:
             sensor_types = df_device_filtrado['sensor_type'].unique().tolist()
@@ -824,6 +841,170 @@ class IoTDashboard:
                     st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No hay variables numéricas para graficar.")
+
+    def render_ender3_dashboard(self, df_device: pd.DataFrame):
+        """Renderiza un dashboard especializado para `ender3_raspi`.
+
+        Espera series tipo `sensor_data` con `sensor_type` prefijados:
+        - ender3.temp.*_c, ender3.fan.*_pct, ender3.pos.*_mm
+        - ender3.print.progress_pct, ender3.print.state_code, ender3.print.remaining_s
+        - rpi.cpu.percent, rpi.mem.percent, rpi.disk.percent, rpi.temp.cpu_c
+        """
+
+        if df_device is None or df_device.empty:
+            st.info("No hay datos recientes para Ender 3.")
+            return
+
+        df = df_device.copy()
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        if 'value' in df.columns:
+            df['value'] = pd.to_numeric(df['value'], errors='coerce')
+        df = df.dropna(subset=['timestamp']).sort_values('timestamp')
+
+        def series(sensor_type: str) -> pd.DataFrame:
+            d = df[df.get('sensor_type') == sensor_type][['timestamp', 'value']].dropna()
+            return d.sort_values('timestamp')
+
+        def last_value(sensor_type: str) -> Optional[float]:
+            s = series(sensor_type)
+            if s.empty:
+                return None
+            try:
+                return float(s['value'].iloc[-1])
+            except Exception:
+                return None
+
+        def last_raw(sensor_type: str) -> Optional[dict]:
+            try:
+                row = df[df.get('sensor_type') == sensor_type].tail(1)
+                if row.empty:
+                    return None
+                raw = row.iloc[0].get('raw_data')
+                if isinstance(raw, dict):
+                    return raw
+                if isinstance(raw, str) and raw.strip().startswith('{'):
+                    return json.loads(raw)
+                return None
+            except Exception:
+                return None
+
+        # --- KPIs principales ---
+        hotend = last_value('ender3.temp.hotend.actual_c')
+        bed = last_value('ender3.temp.bed.actual_c')
+        progress = last_value('ender3.print.progress_pct')
+        remaining_s = last_value('ender3.print.remaining_s')
+        state_raw = last_raw('ender3.print.state_code') or {}
+        state_txt = state_raw.get('state')
+        filename = state_raw.get('filename')
+
+        colA, colB, colC, colD = st.columns(4)
+        colA.metric('Hotend (°C)', f"{hotend:.1f}" if hotend is not None else 'N/A')
+        colB.metric('Cama (°C)', f"{bed:.1f}" if bed is not None else 'N/A')
+        colC.metric('Progreso (%)', f"{progress:.1f}" if progress is not None else 'N/A')
+        if remaining_s is not None:
+            colD.metric('Tiempo restante', f"{remaining_s/60:.0f} min")
+        else:
+            colD.metric('Tiempo restante', 'N/A')
+
+        if state_txt or filename:
+            st.caption(f"Estado: {state_txt or 'N/A'} | Archivo: {filename or 'N/A'}")
+
+        # --- Temperaturas ---
+        st.markdown('#### 🌡️ Temperaturas')
+        s_hotend = series('ender3.temp.hotend.actual_c')
+        s_hotend_t = series('ender3.temp.hotend.target_c')
+        s_bed = series('ender3.temp.bed.actual_c')
+        s_bed_t = series('ender3.temp.bed.target_c')
+
+        fig_temp = go.Figure()
+        if not s_hotend.empty:
+            fig_temp.add_trace(go.Scatter(x=s_hotend['timestamp'], y=s_hotend['value'], name='Hotend actual', mode='lines', line=dict(width=3)))
+        if not s_hotend_t.empty:
+            fig_temp.add_trace(go.Scatter(x=s_hotend_t['timestamp'], y=s_hotend_t['value'], name='Hotend target', mode='lines', line=dict(width=2, dash='dash')))
+        if not s_bed.empty:
+            fig_temp.add_trace(go.Scatter(x=s_bed['timestamp'], y=s_bed['value'], name='Cama actual', mode='lines', line=dict(width=3)))
+        if not s_bed_t.empty:
+            fig_temp.add_trace(go.Scatter(x=s_bed_t['timestamp'], y=s_bed_t['value'], name='Cama target', mode='lines', line=dict(width=2, dash='dash')))
+
+        fig_temp.update_layout(
+            template='plotly_white',
+            height=360,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Temperaturas (últimos 10 min)',
+            xaxis_title='Tiempo',
+            yaxis_title='°C',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_temp, use_container_width=True)
+
+        # --- Progreso impresión (gauge) ---
+        st.markdown('#### 🧾 Progreso de impresión')
+        if progress is not None:
+            fig_prog = go.Figure(go.Indicator(
+                mode='gauge+number',
+                value=max(0.0, min(100.0, float(progress))),
+                number={'suffix': '%'},
+                gauge={'axis': {'range': [0, 100]}}
+            ))
+            fig_prog.update_layout(height=260, margin=dict(l=20, r=20, t=30, b=10), template='plotly_white')
+            st.plotly_chart(fig_prog, use_container_width=True)
+        else:
+            st.info('Sin progreso disponible (no hay impresión activa o faltan datos).')
+
+        # --- Posición toolhead ---
+        st.markdown('#### 📍 Posición del cabezal')
+        s_x = series('ender3.pos.x_mm')
+        s_y = series('ender3.pos.y_mm')
+        s_z = series('ender3.pos.z_mm')
+        fig_pos = go.Figure()
+        if not s_x.empty:
+            fig_pos.add_trace(go.Scatter(x=s_x['timestamp'], y=s_x['value'], name='X (mm)', mode='lines'))
+        if not s_y.empty:
+            fig_pos.add_trace(go.Scatter(x=s_y['timestamp'], y=s_y['value'], name='Y (mm)', mode='lines'))
+        if not s_z.empty:
+            fig_pos.add_trace(go.Scatter(x=s_z['timestamp'], y=s_z['value'], name='Z (mm)', mode='lines'))
+        fig_pos.update_layout(
+            template='plotly_white',
+            height=320,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Posición toolhead (últimos 10 min)',
+            xaxis_title='Tiempo',
+            yaxis_title='mm',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_pos, use_container_width=True)
+
+        # --- Ventiladores ---
+        st.markdown('#### 🌀 Ventiladores')
+        s_fan = series('ender3.fan.part_cooling_pct')
+        if not s_fan.empty:
+            fig_fan = go.Figure()
+            fig_fan.add_trace(go.Scatter(x=s_fan['timestamp'], y=s_fan['value'], name='Part cooling (%)', mode='lines', line=dict(width=3)))
+            fig_fan.update_layout(
+                template='plotly_white',
+                height=280,
+                margin=dict(l=20, r=20, t=40, b=20),
+                title='Fan part cooling (últimos 10 min)',
+                xaxis_title='Tiempo',
+                yaxis_title='%',
+                hovermode='x unified',
+            )
+            st.plotly_chart(fig_fan, use_container_width=True)
+        else:
+            st.info('Sin datos de ventilador disponibles.')
+
+        # --- Métricas de la Raspberry Pi ---
+        st.markdown('#### 🧠 Sistema Raspberry Pi')
+        cpu = last_value('rpi.cpu.percent')
+        mem = last_value('rpi.mem.percent')
+        disk = last_value('rpi.disk.percent')
+        temp = last_value('rpi.temp.cpu_c')
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric('CPU (%)', f"{cpu:.1f}" if cpu is not None else 'N/A')
+        c2.metric('RAM (%)', f"{mem:.1f}" if mem is not None else 'N/A')
+        c3.metric('Disco (%)', f"{disk:.1f}" if disk is not None else 'N/A')
+        c4.metric('Temp CPU (°C)', f"{temp:.1f}" if temp is not None else 'N/A')
 
     def get_device_data(self, device_id, hours=24):
         """Obtener datos específicos de un dispositivo desde la API Jetson"""
