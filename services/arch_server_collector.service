@@ -1,0 +1,27 @@
+[Unit]
+Description=Arch Server Health Collector (psutil + systemd -> IoT Backend ingest)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/repos/iot_streamlit
+
+# Config del collector
+Environment="ARCH_ENV_FILE=/home/daniel/repos/iot_streamlit/.env.arch_server"
+
+# Virtualenv del repo
+Environment="VIRTUAL_ENV=/home/daniel/repos/iot_streamlit/venv"
+Environment="PATH=/home/daniel/repos/iot_streamlit/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+ExecStart=/home/daniel/repos/iot_streamlit/venv/bin/python -u /home/daniel/repos/iot_streamlit/arch_server_collector.py
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
