@@ -82,6 +82,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
+    "https://listings-finals-promised-cargo.trycloudflare.com",  # URL actual Feb 27, 2026 - 21:04 (auto-sync)
     "https://make-start-compilation-graphic.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:29 (auto-sync)
     "https://api.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:27 (auto-sync)
     "https://yoga-sunglasses-power-undertake.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:23 (auto-sync)
@@ -630,22 +631,28 @@ class IoTDashboard:
         if 'raw_data' in df_device.columns:
             df_device['raw_data'] = df_device['raw_data'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
 
+        # Ocultar series no-graficables tipo snapshot (payloads JSON grandes)
+        df_device_display = df_device
+        if 'sensor_type' in df_device.columns:
+            sensor_series = df_device['sensor_type'].astype(str)
+            df_device_display = df_device[~sensor_series.str.endswith('.snapshot')].copy()
+
         # Mostrar información del dispositivo
         device_type = "� ESP32 WiFi" if "esp32" in selected_device.lower() else "🌐 Ethernet" if "ethernet" in selected_device.lower() else "🔗 Red" if "net_device" in selected_device.lower() else "❓ Desconocido"
         st.write(f"{device_type} **{selected_device}** - {len(df_device)} registros (últimos 10 min)")
 
         # Mostrar tabla principal filtrada
         st.markdown(f"### Datos de sensores - {selected_device} (últimos 10 min)")
-        st.dataframe(df_device, use_container_width=True)
+        st.dataframe(df_device_display, use_container_width=True)
 
         # Métricas rápidas
         st.markdown("### 📊 Métricas rápidas")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Total registros", len(df_device))
+            st.metric("Total registros", len(df_device_display))
         with col2:
-            if not df_device.empty:
-                st.metric("Última actualización", str(df_device['timestamp'].max()))
+            if not df_device_display.empty:
+                st.metric("Última actualización", str(df_device_display['timestamp'].max()))
             else:
                 st.metric("Última actualización", "Sin datos")
 
@@ -659,6 +666,9 @@ class IoTDashboard:
         
         # Solo usar los datos ya filtrados de la API (últimos 10 min)
         df_device_filtrado = df_device.copy()
+        if 'sensor_type' in df_device_filtrado.columns:
+            sensor_series = df_device_filtrado['sensor_type'].astype(str)
+            df_device_filtrado = df_device_filtrado[~sensor_series.str.endswith('.snapshot')].copy()
 
         # Dashboard específico para Ender 3 (Klipper/Moonraker)
         if selected_device == "ender3_raspi":
@@ -688,7 +698,13 @@ class IoTDashboard:
                 st.write("- Rango de valores: No value column")
         
         if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns and 'value' in df_device_filtrado.columns:
-            sensor_types = df_device_filtrado['sensor_type'].unique().tolist()
+            # Excluir series que no tengan ningún valor numérico
+            sensor_types: list[str] = []
+            for stype in df_device_filtrado['sensor_type'].astype(str).unique().tolist():
+                df_s = df_device_filtrado[df_device_filtrado['sensor_type'].astype(str) == stype]
+                vals = pd.to_numeric(df_s['value'], errors='coerce')
+                if vals.notna().any():
+                    sensor_types.append(stype)
             st.write(f"📊 Procesando {len(sensor_types)} tipos de sensores: {sensor_types}")
             
             for sensor in sensor_types:
@@ -1002,11 +1018,53 @@ class IoTDashboard:
         mem = last_value('rpi.mem.percent')
         disk = last_value('rpi.disk.percent')
         temp = last_value('rpi.temp.cpu_c')
+
+        # Semáforo de salud (tipo server)
+        throttled_bits = last_value('rpi.throttled.bits')
+        issues_warn: list[str] = []
+        issues_crit: list[str] = []
+
+        if throttled_bits is not None and throttled_bits > 0:
+            issues_warn.append(f"RPI throttled bits={int(throttled_bits)}")
+        if mem is not None:
+            if mem >= 90:
+                issues_crit.append(f"RAM alta ({mem:.1f}%)")
+            elif mem >= 80:
+                issues_warn.append(f"RAM elevada ({mem:.1f}%)")
+        if temp is not None:
+            if temp >= 80:
+                issues_crit.append(f"CPU caliente ({temp:.1f}°C)")
+            elif temp >= 70:
+                issues_warn.append(f"CPU tibia ({temp:.1f}°C)")
+
+        if issues_crit:
+            st.error("🟥 Salud: CRÍTICO — " + "; ".join(issues_crit + issues_warn))
+        elif issues_warn:
+            st.warning("🟧 Salud: ADVERTENCIA — " + "; ".join(issues_warn))
+        else:
+            st.success("🟩 Salud: OK")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric('CPU (%)', f"{cpu:.1f}" if cpu is not None else 'N/A')
         c2.metric('RAM (%)', f"{mem:.1f}" if mem is not None else 'N/A')
         c3.metric('Disco (%)', f"{disk:.1f}" if disk is not None else 'N/A')
         c4.metric('Temp CPU (°C)', f"{temp:.1f}" if temp is not None else 'N/A')
+
+        uptime_s = last_value('rpi.uptime_s')
+        rx_b = last_value('rpi.net.bytes_recv')
+        tx_b = last_value('rpi.net.bytes_sent')
+        c5, c6, c7 = st.columns(3)
+        if uptime_s is not None:
+            c5.metric('Uptime', f"{uptime_s/3600:.1f} h")
+        else:
+            c5.metric('Uptime', 'N/A')
+        if rx_b is not None:
+            c6.metric('RX (MB)', f"{rx_b/1024/1024:.1f}")
+        else:
+            c6.metric('RX (MB)', 'N/A')
+        if tx_b is not None:
+            c7.metric('TX (MB)', f"{tx_b/1024/1024:.1f}")
+        else:
+            c7.metric('TX (MB)', 'N/A')
 
     def get_device_data(self, device_id, hours=24):
         """Obtener datos específicos de un dispositivo desde la API Jetson"""
