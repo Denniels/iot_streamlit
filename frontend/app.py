@@ -75,6 +75,9 @@ st.sidebar.markdown("### 🌐 URL de la API Jetson (Cloudflare Tunnel)")
 st.sidebar.markdown("---")
 st.sidebar.markdown("#### 🔗 Configuración de URL pública de la API")
 
+# Debug UI (opcional)
+SHOW_DEBUG = st.sidebar.checkbox("🧪 Mostrar debug", value=False)
+
 
 # --- Sistema robusto de detección de URL de Cloudflare Tunnel ---
 import time
@@ -82,6 +85,7 @@ from urllib.parse import urlparse
 
 # URLs conocidas ordenadas por prioridad (las más recientes primero)
 KNOWN_CF_URLS = [
+    "https://api.trycloudflare.com",  # URL actual Feb 28, 2026 - 14:33 (auto-sync)
     "https://listings-finals-promised-cargo.trycloudflare.com",  # URL actual Feb 27, 2026 - 21:04 (auto-sync)
     "https://make-start-compilation-graphic.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:29 (auto-sync)
     "https://api.trycloudflare.com",  # URL actual Feb 27, 2026 - 18:27 (auto-sync)
@@ -387,13 +391,15 @@ class IoTDashboard:
                 params['limit'] = 1000  # Fallback para datos recientes
             
             # Debug: mostrar qué parámetros se están enviando
-            st.write(f"🔍 **Debug API Call:** URL: {url}, Params: {params}")
+            if SHOW_DEBUG:
+                st.write(f"🔍 **Debug API Call:** URL: {url}, Params: {params}")
             
             resp = requests.get(url, params=params, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
                 result_data = data.get('data', [])
-                st.write(f"✅ **API Response:** Recibidos {len(result_data)} registros")
+                if SHOW_DEBUG:
+                    st.write(f"✅ **API Response:** Recibidos {len(result_data)} registros")
 
                 # Fallback automático: si la ventana en tiempo real devuelve muy pocos
                 # registros, reintentar con 1 hora para poblar gráficos (UX friendly).
@@ -402,13 +408,15 @@ class IoTDashboard:
                     if sent_hours is not None:
                         # si recibimos <=3 puntos en 10min, ampliar a 1h
                         if len(result_data) <= 3 and float(sent_hours) < 1.0:
-                            st.write("ℹ️ Pocos registros en ventana corta, reintentando con 1 hora...")
+                            if SHOW_DEBUG:
+                                st.write("ℹ️ Pocos registros en ventana corta, reintentando con 1 hora...")
                             params['hours'] = 1.0
                             resp2 = requests.get(url, params=params, timeout=15)
                             if resp2.status_code == 200:
                                 data2 = resp2.json()
                                 result_data = data2.get('data', [])
-                                st.write(f"✅ **API Response (fallback 1h):** Recibidos {len(result_data)} registros")
+                                if SHOW_DEBUG:
+                                    st.write(f"✅ **API Response (fallback 1h):** Recibidos {len(result_data)} registros")
                 except Exception:
                     # No bloquear la experiencia si falla el fallback
                     pass
@@ -675,27 +683,42 @@ class IoTDashboard:
             st.markdown("### 🖨️ Ender 3 (Klipper/Moonraker) — Vista de Producción")
             self.render_ender3_dashboard(df_device_filtrado)
             return
+        
+        # Dashboard específico para el servidor Arch (robusto)
+        # - por device_id
+        # - o por presencia de series arch.* (evita caer en la vista genérica)
+        try:
+            has_arch_series = False
+            if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns:
+                has_arch_series = df_device_filtrado['sensor_type'].astype(str).str.startswith('arch.').any()
+        except Exception:
+            has_arch_series = False
+        if selected_device == "arch_server" or has_arch_series:
+            st.markdown("### 🖥️ Arch Server — Estado y Salud")
+            self.render_arch_server_dashboard(df_device_filtrado)
+            return
 
         # Visualización de variables mejorada
         st.markdown("### 📈 Gráficos de variables")
         
-        # Debug: Mostrar información sobre los datos
-        st.write(f"🔍 **Debug Info:**")
-        st.write(f"- DataFrame filtrado shape: {df_device_filtrado.shape}")
-        st.write(f"- Columnas disponibles: {list(df_device_filtrado.columns) if not df_device_filtrado.empty else 'No data'}")
-        
-        if not df_device_filtrado.empty:
-            st.write(f"- Tipos de sensores únicos: {df_device_filtrado['sensor_type'].unique().tolist() if 'sensor_type' in df_device_filtrado.columns else 'No sensor_type column'}")
-            if 'value' in df_device_filtrado.columns:
-                values_num = pd.to_numeric(df_device_filtrado['value'], errors='coerce')
-                vmin = values_num.min(skipna=True)
-                vmax = values_num.max(skipna=True)
-                if pd.isna(vmin) or pd.isna(vmax):
-                    st.write("- Rango de valores: N/A (sin valores numéricos)")
+        # Debug: mostrar información solo si se habilita en la sidebar
+        if SHOW_DEBUG:
+            st.write(f"🔍 **Debug Info:**")
+            st.write(f"- DataFrame filtrado shape: {df_device_filtrado.shape}")
+            st.write(f"- Columnas disponibles: {list(df_device_filtrado.columns) if not df_device_filtrado.empty else 'No data'}")
+            
+            if not df_device_filtrado.empty:
+                st.write(f"- Tipos de sensores únicos: {df_device_filtrado['sensor_type'].unique().tolist() if 'sensor_type' in df_device_filtrado.columns else 'No sensor_type column'}")
+                if 'value' in df_device_filtrado.columns:
+                    values_num = pd.to_numeric(df_device_filtrado['value'], errors='coerce')
+                    vmin = values_num.min(skipna=True)
+                    vmax = values_num.max(skipna=True)
+                    if pd.isna(vmin) or pd.isna(vmax):
+                        st.write("- Rango de valores: N/A (sin valores numéricos)")
+                    else:
+                        st.write(f"- Rango de valores: {vmin} - {vmax}")
                 else:
-                    st.write(f"- Rango de valores: {vmin} - {vmax}")
-            else:
-                st.write("- Rango de valores: No value column")
+                    st.write("- Rango de valores: No value column")
         
         if not df_device_filtrado.empty and 'sensor_type' in df_device_filtrado.columns and 'value' in df_device_filtrado.columns:
             # Excluir series que no tengan ningún valor numérico
@@ -705,7 +728,8 @@ class IoTDashboard:
                 vals = pd.to_numeric(df_s['value'], errors='coerce')
                 if vals.notna().any():
                     sensor_types.append(stype)
-            st.write(f"📊 Procesando {len(sensor_types)} tipos de sensores: {sensor_types}")
+            if SHOW_DEBUG:
+                st.write(f"📊 Procesando {len(sensor_types)} tipos de sensores: {sensor_types}")
             
             for sensor in sensor_types:
                 st.markdown(f"#### 📈 Gráfico: {sensor}")
@@ -1065,6 +1089,389 @@ class IoTDashboard:
             c7.metric('TX (MB)', f"{tx_b/1024/1024:.1f}")
         else:
             c7.metric('TX (MB)', 'N/A')
+
+    def render_arch_server_dashboard(self, df_device: pd.DataFrame):
+        """Dashboard tipo server para `arch_server`.
+
+        Series esperadas (principales):
+        - CPU: arch.cpu.percent, arch.cpu.load1/5/15, arch.cpu.count, arch.cpu.freq.current_mhz
+        - Memoria: arch.mem.percent, arch.mem.used_bytes, arch.mem.total_bytes, arch.swap.percent
+        - Disco: arch.disk.mount.<mount>.percent (+ total/used), arch.disk.io.read_bytes/write_bytes
+        - Red: arch.net.bytes_recv/bytes_sent (+ opcional arch.net.iface.<iface>.*)
+        - Otros: arch.temp.cpu_c, arch.uptime_s, arch.proc.count, arch.users.count
+        - Servicios: arch.svc.<name>.active, arch.svc.<name>.restarts
+        """
+
+        if df_device is None or df_device.empty:
+            st.info("No hay datos recientes para Arch Server.")
+            return
+
+        df = df_device.copy()
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        if 'value' in df.columns:
+            df['value'] = pd.to_numeric(df['value'], errors='coerce')
+        df = df.dropna(subset=['timestamp']).sort_values('timestamp')
+
+        last_ts = None
+        try:
+            last_ts = df['timestamp'].max()
+        except Exception:
+            last_ts = None
+        if last_ts is not None and not pd.isna(last_ts):
+            st.caption(f"Última muestra: {last_ts}")
+
+        def series(sensor_type: str) -> pd.DataFrame:
+            d = df[df.get('sensor_type') == sensor_type][['timestamp', 'value']].dropna()
+            return d.sort_values('timestamp')
+
+        def series_prefix(prefix: str) -> pd.DataFrame:
+            if 'sensor_type' not in df.columns:
+                return df.iloc[0:0].copy()
+            mask = df['sensor_type'].astype(str).str.startswith(prefix)
+            d = df[mask][['timestamp', 'sensor_type', 'value']].dropna(subset=['timestamp'])
+            return d.sort_values('timestamp')
+
+        def last_value(sensor_type: str) -> Optional[float]:
+            s = series(sensor_type)
+            if s.empty:
+                return None
+            try:
+                return float(s['value'].iloc[-1])
+            except Exception:
+                return None
+
+        def rate_from_counter(s: pd.DataFrame) -> pd.DataFrame:
+            """Convierte un contador acumulado en tasa por segundo (diff/dt).
+
+            Filtra resets (valores negativos) y dt inválidos.
+            """
+            if s is None or s.empty or len(s) < 2:
+                return pd.DataFrame(columns=['timestamp', 'rate'])
+            d = s[['timestamp', 'value']].dropna().sort_values('timestamp').copy()
+            d['dt_s'] = d['timestamp'].diff().dt.total_seconds()
+            d['dv'] = d['value'].diff()
+            d['rate'] = d['dv'] / d['dt_s']
+            d = d.replace([float('inf'), float('-inf')], pd.NA)
+            d = d.dropna(subset=['rate', 'dt_s'])
+            d = d[(d['dt_s'] > 0) & (d['rate'] >= 0)]
+            return d[['timestamp', 'rate']]
+
+        cpu = last_value('arch.cpu.percent')
+        load1 = last_value('arch.cpu.load1')
+        load5 = last_value('arch.cpu.load5')
+        load15 = last_value('arch.cpu.load15')
+        cpu_count = last_value('arch.cpu.count')
+        cpu_freq = last_value('arch.cpu.freq.current_mhz')
+
+        mem = last_value('arch.mem.percent')
+        mem_used_b = last_value('arch.mem.used_bytes')
+        mem_total_b = last_value('arch.mem.total_bytes')
+        swp = last_value('arch.swap.percent')
+        swp_used_b = last_value('arch.swap.used_bytes')
+
+        temp = last_value('arch.temp.cpu_c')
+        uptime_s = last_value('arch.uptime_s')
+        rx_b = last_value('arch.net.bytes_recv')
+        tx_b = last_value('arch.net.bytes_sent')
+        proc_count = last_value('arch.proc.count')
+        users_count = last_value('arch.users.count')
+
+        # Montajes de disco detectados
+        mounts_percent = {}
+        if 'sensor_type' in df.columns:
+            for stype in df['sensor_type'].dropna().astype(str).unique().tolist():
+                if stype.startswith('arch.disk.mount.') and stype.endswith('.percent'):
+                    key = stype[len('arch.disk.mount.'):-len('.percent')]
+                    v = last_value(stype)
+                    if v is not None:
+                        mounts_percent[key] = v
+
+        # Compatibilidad (si existe la serie antigua)
+        disk_root_legacy = last_value('arch.disk.root.percent')
+        if 'root' not in mounts_percent and disk_root_legacy is not None:
+            mounts_percent['root'] = disk_root_legacy
+
+        # Servicios: resumen para salud
+        inactive_services: list[str] = []
+        svc_rows: list[dict] = []
+        if 'sensor_type' in df.columns:
+            svc_active = sorted(
+                [
+                    s
+                    for s in df['sensor_type'].dropna().astype(str).unique().tolist()
+                    if s.startswith('arch.svc.') and s.endswith('.active')
+                ]
+            )
+            for stype in svc_active:
+                name = stype[len('arch.svc.'):-len('.active')]
+                active_val = last_value(stype)
+                restarts_val = last_value(f'arch.svc.{name}.restarts')
+                active_txt = 'active' if active_val == 1.0 else 'inactive'
+                if active_txt != 'active':
+                    inactive_services.append(name)
+                svc_rows.append({'service': name, 'active': active_txt, 'restarts': restarts_val})
+
+        # Semáforo simple (infra)
+        issues_warn: list[str] = []
+        issues_crit: list[str] = []
+        if mem is not None:
+            if mem >= 95:
+                issues_crit.append(f"RAM {mem:.1f}%")
+            elif mem >= 85:
+                issues_warn.append(f"RAM {mem:.1f}%")
+        disk_root = mounts_percent.get('root')
+        if disk_root is not None:
+            if disk_root >= 95:
+                issues_crit.append(f"Disco / {disk_root:.1f}%")
+            elif disk_root >= 85:
+                issues_warn.append(f"Disco / {disk_root:.1f}%")
+                if inactive_services:
+                    issues_warn.append(f"Servicios inactivos: {len(inactive_services)}")
+        if temp is not None:
+            if temp >= 85:
+                issues_crit.append(f"CPU {temp:.1f}°C")
+            elif temp >= 75:
+                issues_warn.append(f"CPU {temp:.1f}°C")
+
+        if issues_crit:
+            st.error("🟥 Salud: CRÍTICO — " + "; ".join(issues_crit + issues_warn))
+        elif issues_warn:
+            st.warning("🟧 Salud: ADVERTENCIA — " + "; ".join(issues_warn))
+        else:
+            st.success("🟩 Salud: OK")
+
+        st.markdown('#### ✅ KPIs')
+        colA, colB, colC, colD, colE, colF = st.columns(6)
+        colA.metric('CPU (%)', f"{cpu:.1f}" if cpu is not None else 'N/A')
+        colB.metric('Load 1/5/15', f"{load1:.2f}/{load5:.2f}/{load15:.2f}" if (load1 is not None and load5 is not None and load15 is not None) else 'N/A')
+        colC.metric('CPU cores', f"{cpu_count:.0f}" if cpu_count is not None else 'N/A')
+        colD.metric('CPU freq (MHz)', f"{cpu_freq:.0f}" if cpu_freq is not None else 'N/A')
+        colE.metric('Temp CPU (°C)', f"{temp:.1f}" if temp is not None else 'N/A')
+        colF.metric('Uptime', f"{uptime_s/3600:.1f} h" if uptime_s is not None else 'N/A')
+
+        colG, colH, colI, colJ, colK, colL = st.columns(6)
+        colG.metric('RAM (%)', f"{mem:.1f}" if mem is not None else 'N/A')
+        if mem_used_b is not None and mem_total_b:
+            colH.metric('RAM used', f"{mem_used_b/1024/1024/1024:.2f} GB")
+        else:
+            colH.metric('RAM used', 'N/A')
+        colI.metric('Swap (%)', f"{swp:.1f}" if swp is not None else 'N/A')
+        if swp_used_b is not None:
+            colJ.metric('Swap used', f"{swp_used_b/1024/1024/1024:.2f} GB")
+        else:
+            colJ.metric('Swap used', 'N/A')
+        colK.metric('Proc', f"{proc_count:.0f}" if proc_count is not None else 'N/A')
+        colL.metric('Users', f"{users_count:.0f}" if users_count is not None else 'N/A')
+
+        if mounts_percent:
+            mounts_preview = ", ".join([f"{k}={v:.1f}%" for k, v in sorted(mounts_percent.items())[:6]])
+            st.caption(f"Discos monitoreados: {mounts_preview}")
+
+        st.divider()
+
+        st.markdown('#### 📈 CPU y carga')
+        s_cpu = series('arch.cpu.percent')
+        s_l1 = series('arch.cpu.load1')
+        s_l5 = series('arch.cpu.load5')
+        s_l15 = series('arch.cpu.load15')
+        fig_cpu = go.Figure()
+        if not s_cpu.empty:
+            fig_cpu.add_trace(go.Scatter(x=s_cpu['timestamp'], y=s_cpu['value'], name='CPU %', mode='lines'))
+        fig_cpu.update_layout(
+            template='plotly_white',
+            height=280,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='CPU (%)',
+            xaxis_title='Tiempo',
+            yaxis_title='%',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_cpu, use_container_width=True)
+        st.caption(
+            "CPU% es el uso promedio. Si se mantiene alto de forma sostenida, el servidor está cerca del límite. "
+            "La carga (load) se interpreta en relación a la cantidad de cores: load≈cores suele indicar saturación." 
+        )
+
+        fig_load = go.Figure()
+        if not s_l1.empty:
+            fig_load.add_trace(go.Scatter(x=s_l1['timestamp'], y=s_l1['value'], name='Load 1m', mode='lines'))
+        if not s_l5.empty:
+            fig_load.add_trace(go.Scatter(x=s_l5['timestamp'], y=s_l5['value'], name='Load 5m', mode='lines'))
+        if not s_l15.empty:
+            fig_load.add_trace(go.Scatter(x=s_l15['timestamp'], y=s_l15['value'], name='Load 15m', mode='lines'))
+        fig_load.update_layout(
+            template='plotly_white',
+            height=260,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Carga (Load Average)',
+            xaxis_title='Tiempo',
+            yaxis_title='Load',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_load, use_container_width=True)
+        st.caption("Load Average mide procesos listos/esperando CPU o I/O. Útil para detectar saturación incluso si CPU% baja.")
+
+        st.divider()
+
+        st.markdown('#### 🧠 Memoria (RAM/Swap)')
+        s_mem = series('arch.mem.percent')
+        s_swp = series('arch.swap.percent')
+        fig_mem = go.Figure()
+        if not s_mem.empty:
+            fig_mem.add_trace(go.Scatter(x=s_mem['timestamp'], y=s_mem['value'], name='RAM %', mode='lines'))
+        if not s_swp.empty:
+            fig_mem.add_trace(go.Scatter(x=s_swp['timestamp'], y=s_swp['value'], name='Swap %', mode='lines'))
+        fig_mem.update_layout(
+            template='plotly_white',
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Uso de memoria',
+            xaxis_title='Tiempo',
+            yaxis_title='%',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_mem, use_container_width=True)
+        st.caption(
+            "RAM alta sostenida (p.ej. >85%) puede anticipar OOM o degradación. "
+            "Swap creciendo suele indicar presión de memoria (latencia)."
+        )
+
+        st.divider()
+
+        st.markdown('#### 💾 Disco (ocupación)')
+        disk_series = []
+        if mounts_percent:
+            for key in sorted(mounts_percent.keys()):
+                disk_series.append((key, series(f'arch.disk.mount.{key}.percent')))
+        elif disk_root_legacy is not None:
+            disk_series.append(('root', series('arch.disk.root.percent')))
+
+        fig_disk = go.Figure()
+        for key, s in disk_series:
+            if not s.empty:
+                fig_disk.add_trace(go.Scatter(x=s['timestamp'], y=s['value'], name=f'{key} %', mode='lines'))
+        fig_disk.update_layout(
+            template='plotly_white',
+            height=320,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Uso de disco por montaje',
+            xaxis_title='Tiempo',
+            yaxis_title='%',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_disk, use_container_width=True)
+        st.caption(
+            "Esto muestra porcentaje de ocupación. Si / se acerca a 95% es crítico (riesgo de fallos de escritura, logs, DB). "
+            "Los montajes monitoreados se configuran con ARCH_DISK_MOUNTS."
+        )
+
+        st.markdown('#### 📀 Disco (I/O)')
+        s_r = series('arch.disk.io.read_bytes')
+        s_w = series('arch.disk.io.write_bytes')
+        r_rate = rate_from_counter(s_r)
+        w_rate = rate_from_counter(s_w)
+        if not r_rate.empty or not w_rate.empty:
+            fig_io = go.Figure()
+            if not r_rate.empty:
+                fig_io.add_trace(go.Scatter(x=r_rate['timestamp'], y=r_rate['rate'] / 1024 / 1024, name='Read MB/s', mode='lines'))
+            if not w_rate.empty:
+                fig_io.add_trace(go.Scatter(x=w_rate['timestamp'], y=w_rate['rate'] / 1024 / 1024, name='Write MB/s', mode='lines'))
+            fig_io.update_layout(
+                template='plotly_white',
+                height=280,
+                margin=dict(l=20, r=20, t=40, b=20),
+                title='Throughput de disco (derivado)',
+                xaxis_title='Tiempo',
+                yaxis_title='MB/s',
+                hovermode='x unified',
+            )
+            st.plotly_chart(fig_io, use_container_width=True)
+            st.caption(
+                "Los bytes de lectura/escritura son contadores acumulados; aquí se calcula MB/s con diferencias entre muestras. "
+                "Picos pueden indicar backups, consultas pesadas o rotación de logs."
+            )
+        else:
+            st.info('Sin suficientes muestras para calcular throughput de disco (se requieren al menos 2).')
+
+        st.divider()
+
+        st.markdown('#### 🌐 Red')
+        s_rx = series('arch.net.bytes_recv')
+        s_tx = series('arch.net.bytes_sent')
+        rx_rate = rate_from_counter(s_rx)
+        tx_rate = rate_from_counter(s_tx)
+        fig_net = go.Figure()
+        if not rx_rate.empty:
+            fig_net.add_trace(go.Scatter(x=rx_rate['timestamp'], y=rx_rate['rate'] * 8 / 1_000_000, name='RX Mbps', mode='lines'))
+        if not tx_rate.empty:
+            fig_net.add_trace(go.Scatter(x=tx_rate['timestamp'], y=tx_rate['rate'] * 8 / 1_000_000, name='TX Mbps', mode='lines'))
+        fig_net.update_layout(
+            template='plotly_white',
+            height=280,
+            margin=dict(l=20, r=20, t=40, b=20),
+            title='Throughput de red (derivado)',
+            xaxis_title='Tiempo',
+            yaxis_title='Mbps',
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_net, use_container_width=True)
+        st.caption(
+            "Los bytes RX/TX son contadores acumulados del sistema. Este gráfico muestra Mbps estimados como delta_bytes/delta_t. "
+            "Si RX/TX cae a 0 con el sistema activo, puede indicar caídas de conectividad o falta de tráfico esperado."
+        )
+
+        # Interfaces (si existen)
+        st.markdown('##### Interfaces (top)')
+        if 'sensor_type' in df.columns:
+            iface_df = series_prefix('arch.net.iface.')
+            if not iface_df.empty:
+                # Compactar último valor por interfaz
+                last_rows = (
+                    iface_df.dropna(subset=['value'])
+                    .sort_values('timestamp')
+                    .groupby('sensor_type', as_index=False)
+                    .tail(1)
+                )
+                # Parse: arch.net.iface.<iface>.bytes_recv
+                rows: list[dict] = []
+                for _, r in last_rows.iterrows():
+                    stype = str(r['sensor_type'])
+                    parts = stype.split('.')
+                    if len(parts) < 5:
+                        continue
+                    iface = parts[3]
+                    metric = parts[4]
+                    rows.append({'iface': iface, 'metric': metric, 'value': r['value']})
+                if rows:
+                    piv = pd.DataFrame(rows).pivot_table(index='iface', columns='metric', values='value', aggfunc='max').reset_index()
+                    if 'bytes_recv' in piv.columns:
+                        piv['bytes_recv_mb'] = piv['bytes_recv'] / 1024 / 1024
+                    if 'bytes_sent' in piv.columns:
+                        piv['bytes_sent_mb'] = piv['bytes_sent'] / 1024 / 1024
+                    cols = [c for c in ['iface', 'bytes_recv_mb', 'bytes_sent_mb'] if c in piv.columns]
+                    st.dataframe(piv[cols].sort_values('iface'), use_container_width=True)
+                    st.caption('Tabla con contadores por interfaz (MB). Útil para ver qué NIC concentra el tráfico.')
+            else:
+                st.info('Sin métricas por interfaz aún.')
+
+        st.divider()
+
+        # Estado de servicios
+        st.markdown('#### 🧩 Servicios systemd')
+        if svc_rows:
+            svc_df = pd.DataFrame(svc_rows)
+            svc_df['restarts'] = pd.to_numeric(svc_df.get('restarts'), errors='coerce')
+            svc_df = svc_df.sort_values(['active', 'restarts', 'service'], ascending=[True, False, True])
+            st.dataframe(svc_df, use_container_width=True)
+            if inactive_services:
+                st.warning('Inactivos: ' + ', '.join(inactive_services))
+            st.caption(
+                "active=inactive indica que systemd reporta el servicio caído en la última muestra. "
+                "restarts ayuda a detectar crash-loops o inestabilidad."
+            )
+        else:
+            st.info('Sin datos de servicios aún. Asegurá que ARCH_SERVICES esté configurado y que el collector esté corriendo.')
 
     def get_device_data(self, device_id, hours=24):
         """Obtener datos específicos de un dispositivo desde la API Jetson"""
